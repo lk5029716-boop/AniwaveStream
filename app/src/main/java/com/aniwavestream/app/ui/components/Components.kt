@@ -458,6 +458,19 @@ fun HeroBanner(
                     )
                 )
         )
+        // Top scrim so the transparent header (ANIVAVE / Premium demo) stays
+        // legible over ANY banner brightness — not just dark ones.
+        Box(
+            Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .height(96.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF121212).copy(alpha = 0.85f), Color.Transparent)
+                    )
+                )
+        )
         // Transparent app header bleeding under the status bar (no top app bar).
         Row(
             Modifier

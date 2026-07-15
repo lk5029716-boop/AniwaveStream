@@ -38,27 +38,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.Tracks
 import androidx.media3.ui.PlayerView
 import com.aniwavestream.app.R
 import com.aniwavestream.app.data.model.DemoStreams
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.repository.UserLibraryStore
-import com.aniwavestream.app.player.PlayerModule
+import com.aniwavestream.app.player.PlayerViewModel
 import com.aniwavestream.app.player.SelectableTrack
 import com.aniwavestream.app.player.TrackSelectionUiState
 import com.aniwavestream.app.player.disableSubtitles
@@ -85,16 +82,22 @@ fun PlayerScreen(
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
-    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
+
+    // CRASH FIX (Rule 9c done right): the ExoPlayer is owned by a ViewModel,
+    // so it is NOT rebuilt/released when the Activity is recreated on rotation
+    // or fullscreen toggle. Previously the player was released on every dispose,
+    // then touched again -> IllegalStateException -> app auto-closed.
+    val vm: PlayerViewModel = viewModel()
+    val exoPlayer = vm.player
+    val playbackError by vm.error.collectAsStateWithLifecycle()
+    val currentTracks by vm.tracks.collectAsStateWithLifecycle()
 
     var title by remember { mutableStateOf(context.getString(R.string.loading)) }
     var maxEp by remember { mutableStateOf(12) }
-    var isFullscreen by remember { mutableStateOf(false) }
+    // Survives rotation so we don't toggle orientation twice and fight the system.
+    var isFullscreen by rememberSaveable { mutableStateOf(false) }
     var showTrackSheet by remember { mutableStateOf(false) }
-    var trackState by remember { mutableStateOf(TrackSelectionUiState()) }
-    var currentTracks by remember { mutableStateOf<Tracks?>(null) }
-    var playbackError by remember { mutableStateOf<PlaybackException?>(null) }
 
     LaunchedEffect(animeId) {
         repository.detail(animeId).onSuccess {
@@ -107,45 +110,20 @@ fun PlayerScreen(
         DemoStreams.forEpisode(animeId, episode)
     }
 
-    // Rule 9: cache-backed, load-control-tuned player from the central module.
-    val exoPlayer = remember {
-        PlayerModule.buildPlayer(context).apply {
-            playWhenReady = true
-            repeatMode = Player.REPEAT_MODE_OFF
-        }
-    }
-
-    // --- CRASH FIX: attach a listener so playback/network errors surface as UI
-    //     state instead of propagating and killing the app. Also keep track and
-    //     tracks state in sync for the selection menus (Rule 10).
-    DisposableEffect(exoPlayer) {
-        val listener = object : Player.Listener {
-            override fun onPlayerError(error: PlaybackException) {
-                playbackError = error
-            }
-
-            override fun onTracksChanged(tracks: Tracks) {
-                currentTracks = tracks
-                trackState = tracks.toTrackSelectionUiState()
-            }
-        }
-        exoPlayer.addListener(listener)
-        onDispose { exoPlayer.removeListener(listener) }
-    }
-
     LaunchedEffect(streamUrl) {
-        playbackError = null
+        vm.clearError()
         // DRM-ready item builder (Rule 12); demo streams pass no license URL.
         exoPlayer.setMediaItem(PlayerModule.buildMediaItem(streamUrl))
         exoPlayer.prepare()
         exoPlayer.play()
     }
 
-    // Rule 9c: lifecycle-aware pause/release so backgrounding never crashes.
+    // Rule 9c: lifecycle-aware pause so backgrounding never crashes.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_PAUSE -> exoPlayer.pause()
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> exoPlayer.pause()
                 else -> Unit
             }
         }
@@ -153,7 +131,7 @@ fun PlayerScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Persist rough progress while watching (guarded against released player).
+    // Progress persistence (guarded against any transient player state).
     LaunchedEffect(animeId, episode, exoPlayer) {
         while (isActive) {
             delay(5000)
@@ -167,7 +145,9 @@ fun PlayerScreen(
         }
     }
 
+    // Keep screen on during playback.
     DisposableEffect(Unit) {
+        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
             runCatching {
                 val dur = exoPlayer.duration
@@ -178,20 +158,13 @@ fun PlayerScreen(
                     }
                 }
             }
-            exoPlayer.release()
-            // Restore orientation + system bars on exit.
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            // Restore orientation on exit.
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
 
-    // Keep screen on during playback.
-    DisposableEffect(Unit) {
-        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        onDispose { }
-    }
-
-    // Rule 9c: react to fullscreen toggle by rotating natively (no player rebuild).
+    // Rule 9c: react to fullscreen toggle by rotating natively (player kept alive).
     LaunchedEffect(isFullscreen) {
         activity?.requestedOrientation = if (isFullscreen) {
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
@@ -208,12 +181,13 @@ fun PlayerScreen(
         }
     }
 
+    val trackState = currentTracks?.toTrackSelectionUiState() ?: TrackSelectionUiState()
+
     Column(
         Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // Top bar hidden in fullscreen for immersion.
         AnimatedVisibility(visible = !isFullscreen) {
             Row(
                 Modifier
@@ -288,7 +262,6 @@ fun PlayerScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Fullscreen toggle overlay (Rule 9c).
             IconButton(
                 onClick = { isFullscreen = !isFullscreen },
                 modifier = Modifier
@@ -304,11 +277,10 @@ fun PlayerScreen(
                 )
             }
 
-            // Rule 4-style consumer error overlay (also the crash fix in action).
             playbackError?.let {
                 PlaybackErrorOverlay(
                     onRetry = {
-                        playbackError = null
+                        vm.clearError()
                         exoPlayer.setMediaItem(PlayerModule.buildMediaItem(streamUrl))
                         exoPlayer.prepare()
                         exoPlayer.play()
@@ -340,7 +312,6 @@ fun PlayerScreen(
         }
     }
 
-    // Rule 10: audio + subtitle selection sheet overlaid on the player.
     if (showTrackSheet) {
         TrackSelectionSheet(
             state = trackState,
@@ -354,119 +325,5 @@ fun PlayerScreen(
             },
             onDismiss = { showTrackSheet = false }
         )
-    }
-}
-
-@Composable
-private fun PlaybackErrorOverlay(onRetry: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.85f))
-            .padding(32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            stringResource(R.string.playback_error_title),
-            color = TextPrimary,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            stringResource(R.string.playback_error_message),
-            color = TextSecondary,
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(Modifier.width(16.dp))
-        Box(
-            Modifier
-                .padding(top = 20.dp)
-                .background(OrangePrimary, RoundedCornerShape(50))
-                .clickable(onClick = onRetry)
-                .padding(horizontal = 28.dp, vertical = 12.dp)
-        ) {
-            Text(stringResource(R.string.retry), color = Color.White, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-private fun TrackSelectionSheet(
-    state: TrackSelectionUiState,
-    onSelect: (SelectableTrack) -> Unit,
-    onSubtitlesOff: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.6f))
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .background(SurfaceElevated, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                .padding(20.dp)
-        ) {
-            if (state.hasAudioOptions) {
-                Text(
-                    stringResource(R.string.audio_tracks),
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.width(8.dp))
-                state.audioTracks.forEach { track ->
-                    TrackRow(track.label, track.isSelected) { onSelect(track) }
-                }
-                Spacer(Modifier.width(16.dp))
-            }
-            if (state.hasSubtitleOptions) {
-                Text(
-                    stringResource(R.string.subtitles),
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.width(8.dp))
-                TrackRow(stringResource(R.string.subtitles_off), false, onSubtitlesOff)
-                state.subtitleTracks.forEach { track ->
-                    TrackRow(track.label, track.isSelected) { onSelect(track) }
-                }
-            }
-            Spacer(Modifier.width(12.dp))
-            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
-                Text(stringResource(R.string.close), color = OrangePrimary)
-            }
-        }
-    }
-}
-
-@Composable
-private fun TrackRow(label: String, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            label,
-            color = if (selected) OrangePrimary else TextPrimary,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            modifier = Modifier.weight(1f)
-        )
-        if (selected) {
-            Icon(
-                Icons.Filled.Subtitles,
-                contentDescription = null,
-                tint = OrangePrimary
-            )
-        }
     }
 }

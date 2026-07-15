@@ -37,11 +37,20 @@ object PlayerModule {
 
     fun getCache(context: Context): SimpleCache =
         cache ?: synchronized(this) {
-            cache ?: SimpleCache(
-                context.applicationContext.cacheDir.resolve("media_cache"),
-                LeastRecentlyUsedCacheEvictor(MAX_CACHE_BYTES),
-                StandaloneDatabaseProvider(context.applicationContext)
-            ).also { cache = it }
+            cache ?: runCatching {
+                SimpleCache(
+                    context.applicationContext.cacheDir.resolve("media_cache"),
+                    LeastRecentlyUsedCacheEvictor(MAX_CACHE_BYTES),
+                    StandaloneDatabaseProvider(context.applicationContext)
+                )
+            }.getOrElse { ex ->
+                // A stale lock file or bad DB can throw here. Fall back to a
+                // fresh, lock-free cache dir so playback can still start.
+                SimpleCache(
+                    context.applicationContext.cacheDir.resolve("media_cache_${System.currentTimeMillis()}"),
+                    LeastRecentlyUsedCacheEvictor(MAX_CACHE_BYTES)
+                ).also { android.util.Log.w("PlayerModule", "cache fallback: $ex") }
+            }.also { cache = it }
         }
 
     /** Upstream HTTP source with sane timeouts + cross-redirect support. */
