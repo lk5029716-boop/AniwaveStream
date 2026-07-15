@@ -1,5 +1,7 @@
 package com.aniwavestream.app.ui.home
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,7 +31,7 @@ import com.aniwavestream.app.ui.components.AnimeRow
 import com.aniwavestream.app.ui.components.ContinueCard
 import com.aniwavestream.app.ui.components.ErrorBox
 import com.aniwavestream.app.ui.components.HeroBanner
-import com.aniwavestream.app.ui.components.LoadingBox
+import com.aniwavestream.app.ui.components.HomeShimmer
 import com.aniwavestream.app.ui.components.SectionHeader
 import com.aniwavestream.app.ui.theme.Background
 import com.aniwavestream.app.ui.theme.OrangePrimary
@@ -53,10 +55,19 @@ fun HomeScreen(
             .fillMaxSize()
             .background(Background)
     ) {
-        when {
-            state.loading && state.hero == null -> LoadingBox()
-            state.error != null && state.hero == null -> ErrorBox(state.error!!) { viewModel.refresh() }
-            else -> LazyColumn(Modifier.fillMaxSize()) {
+        Crossfade(
+            targetState = when {
+                state.loading && state.hero == null -> HomeContentState.LOADING
+                state.error != null && state.hero == null -> HomeContentState.ERROR
+                else -> HomeContentState.CONTENT
+            },
+            animationSpec = tween(350),
+            label = "home-content"
+        ) { contentState ->
+            when (contentState) {
+                HomeContentState.LOADING -> HomeShimmer(Modifier.fillMaxSize().background(Background))
+                HomeContentState.ERROR -> ErrorBox(state.error ?: "") { viewModel.refresh() }
+                HomeContentState.CONTENT -> LazyColumn(Modifier.fillMaxSize()) {
                 item {
                     Row(
                         Modifier
@@ -124,7 +135,10 @@ fun HomeScreen(
                         Spacer(Modifier.height(24.dp))
                     }
                 }
+                }
             }
         }
     }
 }
+
+private enum class HomeContentState { LOADING, ERROR, CONTENT }

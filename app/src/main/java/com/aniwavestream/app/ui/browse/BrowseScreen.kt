@@ -40,7 +40,7 @@ import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.BrowseGenres
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.ui.components.ErrorBox
-import com.aniwavestream.app.ui.components.LoadingBox
+import com.aniwavestream.app.ui.components.PosterGridShimmer
 import com.aniwavestream.app.ui.theme.Background
 import com.aniwavestream.app.ui.theme.OrangePrimary
 import com.aniwavestream.app.ui.theme.SurfaceElevated
@@ -110,8 +110,10 @@ fun BrowseScreen(
         }
         Spacer(Modifier.height(12.dp))
         when {
-            loading -> LoadingBox()
-            error != null -> ErrorBox(error!!) { selectedGenre = selectedGenre }
+            loading -> PosterGridShimmer(modifier = Modifier.fillMaxSize())
+            error != null -> ErrorBox(error!!) {
+                val g = selectedGenre; selectedGenre = -1; selectedGenre = g
+            }
             else -> LazyVerticalGrid(
                 columns = GridCells.Adaptive(120.dp),
                 contentPadding = PaddingValues(16.dp),

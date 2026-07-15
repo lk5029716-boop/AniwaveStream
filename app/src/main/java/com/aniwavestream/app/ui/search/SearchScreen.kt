@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.repository.AnimeRepository
-import com.aniwavestream.app.ui.components.LoadingBox
+import com.aniwavestream.app.ui.components.EpisodeListShimmer
 import com.aniwavestream.app.ui.theme.Background
 import com.aniwavestream.app.ui.theme.OrangePrimary
 import com.aniwavestream.app.ui.theme.SurfaceElevated
@@ -107,7 +107,7 @@ fun SearchScreen(
         )
         Spacer(Modifier.height(12.dp))
         when {
-            loading -> LoadingBox()
+            loading -> EpisodeListShimmer(modifier = Modifier.fillMaxSize())
             query.isBlank() -> BoxHint("Find titles, genres vibes, or classics")
             error != null -> BoxHint(error!!)
             results.isEmpty() -> BoxHint("No results for “$query”")

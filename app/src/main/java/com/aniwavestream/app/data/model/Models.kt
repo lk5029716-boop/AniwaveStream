@@ -1,5 +1,6 @@
 package com.aniwavestream.app.data.model
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -74,6 +75,7 @@ data class NamedEntity(
 data class Aired(val string: String? = null)
 
 /** In-app domain models */
+@Immutable
 data class Anime(
     val id: Int,
     val title: String,
@@ -106,6 +108,7 @@ fun AnimeDto.toAnime() = Anime(
     studios = studios.map { it.name }
 )
 
+@Immutable
 data class Episode(
     val number: Int,
     val title: String,
@@ -114,6 +117,7 @@ data class Episode(
     val streamUrl: String
 )
 
+@Immutable
 data class ContinueItem(
     val anime: Anime,
     val episode: Int,
@@ -146,6 +150,7 @@ object DemoStreams {
     }
 }
 
+@Immutable
 data class GenreChip(val id: Int, val name: String)
 
 val BrowseGenres = listOf(

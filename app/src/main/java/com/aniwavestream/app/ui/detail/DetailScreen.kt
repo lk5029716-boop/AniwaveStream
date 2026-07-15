@@ -49,8 +49,9 @@ import com.aniwavestream.app.data.model.DemoStreams
 import com.aniwavestream.app.data.model.Episode
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.repository.UserLibraryStore
+import com.aniwavestream.app.ui.components.EpisodeCard
+import com.aniwavestream.app.ui.components.EpisodeListShimmer
 import com.aniwavestream.app.ui.components.ErrorBox
-import com.aniwavestream.app.ui.components.LoadingBox
 import com.aniwavestream.app.ui.components.PrimaryPillButton
 import com.aniwavestream.app.ui.components.SecondaryPillButton
 import com.aniwavestream.app.ui.theme.Background
@@ -73,13 +74,14 @@ fun DetailScreen(
     var anime by remember { mutableStateOf<Anime?>(null) }
     var episodes by remember { mutableStateOf<List<Episode>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<Throwable?>(null) }
     val myList by library.myListIds.collectAsState(initial = emptySet())
     val inList = animeId in myList
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(animeId) {
         loading = true
+        error = null
         repository.detail(animeId)
             .onSuccess {
                 anime = it
@@ -87,14 +89,26 @@ fun DetailScreen(
                 loading = false
             }
             .onFailure {
-                error = it.message ?: "Failed to load"
+                error = it
                 loading = false
             }
     }
 
     when {
-        loading -> LoadingBox(Modifier.background(Background))
-        error != null -> ErrorBox(error!!) { }
+        loading -> EpisodeListShimmer(modifier = Modifier.fillMaxSize().background(Background))
+        error != null -> ErrorBox(error!!) {
+            scope.launch {
+                loading = true
+                error = null
+                repository.detail(animeId)
+                    .onSuccess {
+                        anime = it
+                        episodes = DemoStreams.buildEpisodes(it)
+                        loading = false
+                    }
+                    .onFailure { e -> error = e; loading = false }
+            }
+        }
         anime != null -> {
             val a = anime!!
             LazyColumn(
@@ -182,7 +196,12 @@ fun DetailScreen(
                     }
                 }
                 items(episodes, key = { it.number }) { ep ->
-                    EpisodeRow(ep) { onPlay(ep.number) }
+                    EpisodeCard(
+                        episode = ep,
+                        thumbnailUrl = a.bannerUrl ?: a.posterUrl,
+                        watchProgress = 0f,
+                        onClick = { onPlay(ep.number) }
+                    )
                 }
                 item { Spacer(Modifier.height(32.dp)) }
             }
