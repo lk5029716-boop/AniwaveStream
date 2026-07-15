@@ -137,13 +137,13 @@ fun PlayerScreen(
                 onClick = { if (episode > 1) onEpisodeChange(episode - 1) },
                 enabled = episode > 1
             ) {
-                Icon(Icons.AutoMirrored.Filled.SkipPrevious, null, tint = OrangePrimary)
+                Icon(Icons.Filled.SkipPrevious, null, tint = OrangePrimary)
             }
             IconButton(
                 onClick = { if (episode < maxEp) onEpisodeChange(episode + 1) },
                 enabled = episode < maxEp
             ) {
-                Icon(Icons.AutoMirrored.Filled.SkipNext, null, tint = OrangePrimary)
+                Icon(Icons.Filled.SkipNext, null, tint = OrangePrimary)
             }
         }
 
