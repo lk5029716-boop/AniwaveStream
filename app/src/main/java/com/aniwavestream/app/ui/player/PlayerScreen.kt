@@ -330,3 +330,117 @@ fun PlayerScreen(
         )
     }
 }
+
+@Composable
+private fun PlaybackErrorOverlay(onRetry: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.85f))
+            .padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            stringResource(R.string.playback_error_title),
+            color = TextPrimary,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            stringResource(R.string.playback_error_message),
+            color = TextSecondary,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(Modifier.width(16.dp))
+        Box(
+            Modifier
+                .padding(top = 20.dp)
+                .background(OrangePrimary, RoundedCornerShape(50))
+                .clickable(onClick = onRetry)
+                .padding(horizontal = 28.dp, vertical = 12.dp)
+        ) {
+            Text(stringResource(R.string.retry), color = Color.White, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun TrackSelectionSheet(
+    state: TrackSelectionUiState,
+    onSelect: (SelectableTrack) -> Unit,
+    onSubtitlesOff: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f))
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(SurfaceElevated, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                .padding(20.dp)
+        ) {
+            if (state.hasAudioOptions) {
+                Text(
+                    stringResource(R.string.audio_tracks),
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.width(8.dp))
+                state.audioTracks.forEach { track ->
+                    TrackRow(track.label, track.isSelected) { onSelect(track) }
+                }
+                Spacer(Modifier.width(16.dp))
+            }
+            if (state.hasSubtitleOptions) {
+                Text(
+                    stringResource(R.string.subtitles),
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.width(8.dp))
+                TrackRow(stringResource(R.string.subtitles_off), false, onSubtitlesOff)
+                state.subtitleTracks.forEach { track ->
+                    TrackRow(track.label, track.isSelected) { onSelect(track) }
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                Text(stringResource(R.string.close), color = OrangePrimary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrackRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            color = if (selected) OrangePrimary else TextPrimary,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.weight(1f)
+        )
+        if (selected) {
+            Icon(
+                Icons.Filled.Subtitles,
+                contentDescription = null,
+                tint = OrangePrimary
+            )
+        }
+    }
+}
