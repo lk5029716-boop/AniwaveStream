@@ -38,6 +38,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +57,7 @@ import com.aniwavestream.app.R
 import com.aniwavestream.app.data.model.DemoStreams
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.repository.UserLibraryStore
+import com.aniwavestream.app.player.PlayerModule
 import com.aniwavestream.app.player.PlayerViewModel
 import com.aniwavestream.app.player.SelectableTrack
 import com.aniwavestream.app.player.TrackSelectionUiState
