@@ -4,9 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,16 +14,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.ui.components.AnimeRow
 import com.aniwavestream.app.ui.components.ContinueCard
@@ -34,8 +29,6 @@ import com.aniwavestream.app.ui.components.HeroBanner
 import com.aniwavestream.app.ui.components.HomeShimmer
 import com.aniwavestream.app.ui.components.SectionHeader
 import com.aniwavestream.app.ui.theme.Background
-import com.aniwavestream.app.ui.theme.OrangePrimary
-import com.aniwavestream.app.ui.theme.TextPrimary
 import com.aniwavestream.app.viewmodel.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,30 +61,16 @@ fun HomeScreen(
                 HomeContentState.LOADING -> HomeShimmer(Modifier.fillMaxSize().background(Background))
                 HomeContentState.ERROR -> ErrorBox(state.error ?: "") { viewModel.refresh() }
                 HomeContentState.CONTENT -> LazyColumn(Modifier.fillMaxSize()) {
-                item {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            "ANIVAVE",
-                            color = OrangePrimary,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 22.sp,
-                            letterSpacing = 2.sp
-                        )
-                        Text("Premium demo", color = TextPrimary.copy(alpha = 0.5f), fontSize = 12.sp)
-                    }
-                }
                 state.hero?.let { hero ->
                     item {
                         HeroBanner(
                             anime = hero,
                             onPlay = { onPlay(hero) },
-                            onDetails = { onAnimeClick(hero) }
+                            onDetails = { onAnimeClick(hero) },
+                            pageCount = state.trending.size.coerceAtLeast(1),
+                            selectedPage = state.trending
+                                .indexOfFirst { it.id == hero.id }
+                                .coerceAtLeast(0)
                         )
                     }
                 }

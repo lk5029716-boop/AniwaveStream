@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -29,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SearchOff
@@ -36,6 +38,7 @@ import androidx.compose.material.icons.filled.SentimentDissatisfied
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -215,13 +218,30 @@ fun AnimePosterCard(
             }
         }
         Spacer(Modifier.height(6.dp))
-        Text(
-            anime.title,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextPrimary
-        )
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                anime.title,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextPrimary,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+            IconButton(
+                onClick = { /* TODO: quick actions (add to list / share) */ },
+                modifier = Modifier.size(22.dp)
+            ) {
+                Icon(
+                    Icons.Filled.MoreVert,
+                    contentDescription = null,
+                    tint = TextMuted.copy(alpha = 0.7f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
     }
 }
 
@@ -229,7 +249,7 @@ fun AnimePosterCard(
 fun AnimeRow(
     items: List<Anime>,
     onAnimeClick: (Anime) -> Unit,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp)
+    contentPadding: PaddingValues = PaddingValues(start = 16.dp, end = 32.dp)
 ) {
     LazyRow(
         contentPadding = contentPadding,
@@ -412,7 +432,9 @@ fun EpisodeCard(
 fun HeroBanner(
     anime: Anime,
     onPlay: () -> Unit,
-    onDetails: () -> Unit
+    onDetails: () -> Unit,
+    pageCount: Int = 5,
+    selectedPage: Int = 0
 ) {
     Box(
         Modifier
@@ -425,19 +447,35 @@ fun HeroBanner(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
-        // Bottom-anchored vertical scrim for readable overlay text over bright art.
+        // Vertical scrim over the bottom half for deeply readable overlay text.
         Box(
             Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        0f to Color.Black.copy(alpha = 0.35f),
-                        0.4f to Color.Transparent,
-                        0.75f to Background.copy(alpha = 0.6f),
-                        1f to Background
+                        colors = listOf(Color.Transparent, Color(0xFF121212))
                     )
                 )
         )
+        // Transparent app header bleeding under the status bar (no top app bar).
+        Row(
+            Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                "ANIVAVE",
+                color = OrangePrimary,
+                fontWeight = FontWeight.Black,
+                fontSize = 22.sp,
+                letterSpacing = 2.sp
+            )
+            Text("Premium demo", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+        }
         Column(
             Modifier
                 .align(Alignment.BottomStart)
@@ -476,8 +514,24 @@ fun HeroBanner(
             )
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrimaryPillButton(text = "Play", onClick = onPlay, leadingIcon = Icons.Default.PlayArrow)
+                PrimaryPillButton(text = "Start Watching E1", onClick = onPlay, leadingIcon = Icons.Default.PlayArrow)
                 SecondaryPillButton(text = "Details", onClick = onDetails)
+            }
+            Spacer(Modifier.height(14.dp))
+            // Carousel indicator: short horizontal pill segments signalling a swipeable banner.
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                repeat(pageCount) { index ->
+                    val selected = index == selectedPage
+                    Box(
+                        Modifier
+                            .height(4.dp)
+                            .width(if (selected) 22.dp else 10.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(
+                                if (selected) OrangePrimary else Color.White.copy(alpha = 0.35f)
+                            )
+                    )
+                }
             }
         }
     }
