@@ -187,36 +187,10 @@ fun HomeScreen(
                         Column(Modifier.fillMaxWidth()) {
                             SectionHeader("Weekly Schedule")
                             Spacer(Modifier.height(6.dp))
-                            val days = com.aniwavestream.app.data.model.ScheduleDays
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(days, key = { it }) { day ->
-                                    val active = day == state.scheduleDay
-                                    Box(
-                                        Modifier
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(if (active) Flame else SurfaceRaised)
-                                            .border(1.dp, if (active) Flame else Hairline, RoundedCornerShape(10.dp))
-                                            .clickable { viewModel.setScheduleDay(day) }
-                                            .padding(horizontal = 14.dp, vertical = 7.dp)
-                                    ) {
-                                        Text(
-                                            day.replaceFirstChar { it.uppercase() },
-                                            color = if (active) Void else TextSecondary,
-                                            fontFamily = PlexMono,
-                                            fontSize = 12.5.sp
-                                        )
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.height(10.dp))
                             val activeDayLabel = "Today's Schedule — " + state.scheduleDay.replaceFirstChar { it.uppercase() }
                             AnivaveScheduleCard(
                                 dayLabel = activeDayLabel,
                                 shows = state.schedule,
-                                onItem = onAnimeClick,
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                             Spacer(Modifier.height(8.dp))

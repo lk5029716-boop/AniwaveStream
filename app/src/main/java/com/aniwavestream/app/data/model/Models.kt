@@ -208,3 +208,67 @@ fun CharacterEdgeDto.toCharacter(): Character? {
 /** Airing anime for a weekday (Jikan schedules). */
 val ScheduleDays = listOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
+/** A single timed broadcast for the weekly schedule card. */
+data class DayAiring(
+    val time: String,      // "23:00"
+    val title: String,
+    val status: String     // "Hype Airing", "New", "Final"
+)
+
+/** Demo schedule shown when the live Jikan call returns nothing. */
+val DemoSchedule: Map<String, List<DayAiring>> = mapOf(
+    "monday" to listOf(
+        DayAiring("23:00", "Solo Leveling", "Hype Airing"),
+        DayAiring("23:30", "Dr. Stone: Science Future", "New"),
+        DayAiring("24:00", "One Punch Man S3", "Hype Airing")
+    ),
+    "tuesday" to listOf(
+        DayAiring("22:00", "Jujutsu Kaisen", "Hype Airing"),
+        DayAiring("23:00", "Blue Lock S2", "New"),
+        DayAiring("24:30", "Mushoku Tensei S2", "Final")
+    ),
+    "wednesday" to listOf(
+        DayAiring("21:00", "Frieren", "Hype Airing"),
+        DayAiring("22:30", "Spy x Family S3", "New"),
+        DayAiring("23:00", "Chainsaw Man S2", "Hype Airing")
+    ),
+    "thursday" to listOf(
+        DayAiring("22:00", "Re:ZERO S3", "Hype Airing"),
+        DayAiring("23:30", "Oshi no Ko S2", "Final"),
+        DayAiring("24:00", "Kaiju No. 8 S2", "New")
+    ),
+    "friday" to listOf(
+        DayAiring("23:00", "Demon Slayer: Hashira", "Hype Airing"),
+        DayAiring("24:00", "Tokyo Ghoul:re", "New")
+    ),
+    "saturday" to listOf(
+        DayAiring("17:00", "My Hero Academia S7", "Hype Airing"),
+        DayAiring("18:30", "Black Clover", "New"),
+        DayAiring("22:00", "Haikyuu!! Final", "Final")
+    ),
+    "sunday" to listOf(
+        DayAiring("21:00", "Bleach: TYBW", "Hype Airing"),
+        DayAiring("22:30", "Naruto: Two Blue Vortex", "New"),
+        DayAiring("23:00", "One Piece", "Hype Airing")
+    )
+)
+
+/** Demo anime used to fill New Releases / Upcoming when the live API is empty. */
+val DemoNewReleases: List<Anime> = listOf(
+    Anime(91001, "Solo Leveling", "https://cdn.myanimelist.net/images/anime/1500/110741.jpg", score = 8.9, type = "TV", episodes = 25, status = "Finished Airing", year = 2024, genres = listOf("Action", "Adventure", "Fantasy"), studios = listOf("A-1 Pictures")),
+    Anime(91002, "Frieren: Beyond Journey's End", "https://cdn.myanimelist.net/images/anime/1015/138006.jpg", score = 9.3, type = "TV", episodes = 28, status = "Finished Airing", year = 2023, genres = listOf("Adventure", "Drama", "Fantasy"), studios = listOf("Madhouse")),
+    Anime(91003, "Jujutsu Kaisen", "https://cdn.myanimelist.net/images/anime/1173/110255.jpg", score = 8.7, type = "TV", episodes = 47, status = "Finished Airing", year = 2023, genres = listOf("Action", "Supernatural"), studios = listOf("MAPPA")),
+    Anime(91004, "Chainsaw Man", "https://cdn.myanimelist.net/images/anime/1364/138324.jpg", score = 8.6, type = "TV", episodes = 12, status = "Finished Airing", year = 2022, genres = listOf("Action", "Supernatural"), studios = listOf("MAPPA")),
+    Anime(91005, "Demon Slayer: Kimetsu no Yaiba", "https://cdn.myanimelist.net/images/anime/1286/99889.jpg", score = 8.5, type = "TV", episodes = 55, status = "Finished Airing", year = 2024, genres = listOf("Action", "Fantasy"), studios = listOf("ufotable")),
+    Anime(91006, "Spy x Family", "https://cdn.myanimelist.net/images/anime/1554/131518.jpg", score = 8.4, type = "TV", episodes = 37, status = "Finished Airing", year = 2023, genres = listOf("Action", "Comedy", "Slice of Life"), studios = listOf("Wit Studio"))
+)
+
+val DemoUpcoming: List<Anime> = listOf(
+    Anime(92001, "Re:ZERO -Starting Life in Another World- Season 3", "https://cdn.myanimelist.net/images/anime/1764/138002.jpg", score = 8.4, type = "TV", episodes = 16, status = "Currently Airing", year = 2025, genres = listOf("Drama", "Fantasy", "Psychological"), studios = listOf("White Fox")),
+    Anime(92002, "One Punch Man Season 3", "https://cdn.myanimelist.net/images/anime/1384/138003.jpg", score = 7.9, type = "TV", episodes = 12, status = "Upcoming", year = 2025, genres = listOf("Action", "Comedy", "Superhero"), studios = listOf("J.C.Staff")),
+    Anime(92003, "Blue Lock Season 2", "https://cdn.myanimelist.net/images/anime/1432/138004.jpg", score = 7.7, type = "TV", episodes = 14, status = "Upcoming", year = 2025, genres = listOf("Sports")),
+    Anime(92004, "Mushoku Tensei: Jobless Reincarnation Season 2", "https://cdn.myanimelist.net/images/anime/1315/138005.jpg", score = 8.3, type = "TV", episodes = 13, status = "Upcoming", year = 2025, genres = listOf("Adventure", "Drama", "Fantasy"), studios = listOf("Studio Bind")),
+    Anime(92005, "Kaiju No. 8 Season 2", "https://cdn.myanimelist.net/images/anime/1543/138006.jpg", score = 8.0, type = "TV", episodes = 12, status = "Upcoming", year = 2025, genres = listOf("Action", "Sci-Fi")),
+    Anime(92006, "Oshi no Ko Season 2", "https://cdn.myanimelist.net/images/anime/1492/138007.jpg", score = 8.2, type = "TV", episodes = 13, status = "Upcoming", year = 2025, genres = listOf("Drama", "Mystery"))
+)
+

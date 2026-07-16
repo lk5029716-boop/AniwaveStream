@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.aniwavestream.app.data.model.Anime
+import com.aniwavestream.app.data.model.DayAiring
 import com.aniwavestream.app.data.model.Character
 import com.aniwavestream.app.data.model.Episode
 import com.aniwavestream.app.ui.theme.AnivaveArt
@@ -1100,12 +1101,13 @@ fun AnivaveUpcomingCard(
 
 /**
  * Anivave "Weekly Schedule" — surface card with timed list of shows.
+ * anivave shows "Today's Schedule" + JST BROADCAST badge + a timed list.
  */
 @Composable
 fun AnivaveScheduleCard(
     dayLabel: String,
-    shows: List<Anime>,
-    onItem: (Anime) -> Unit,
+    shows: List<DayAiring>,
+    onItem: (DayAiring) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -1136,19 +1138,19 @@ fun AnivaveScheduleCard(
             Text("No airing shows for this day.", color = TextSecondary, fontFamily = PlexMono, fontSize = 12.sp)
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                shows.take(8).forEach { a ->
+                shows.take(8).forEach { s ->
                     Row(
                         Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
                             .border(1.dp, Hairline, RoundedCornerShape(10.dp))
                             .background(Background.copy(alpha = 0.5f))
-                            .clickable { onItem(a) }
+                            .clickable { onItem(s) }
                             .padding(8.dp, 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "JST",
+                            s.time,
                             color = Flame,
                             fontFamily = PlexMono,
                             fontSize = 10.5.sp,
@@ -1156,8 +1158,8 @@ fun AnivaveScheduleCard(
                             modifier = Modifier.width(44.dp)
                         )
                         Column(Modifier.weight(1f)) {
-                            Text(a.title, color = TextPrimary, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(a.type ?: "Airing", color = TextMuted, fontFamily = PlexMono, fontSize = 8.5.sp)
+                            Text(s.title, color = TextPrimary, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(s.status, color = TextMuted, fontFamily = PlexMono, fontSize = 8.5.sp)
                         }
                         Text("●", color = Cool, fontSize = 10.sp, fontFamily = PlexMono)
                     }

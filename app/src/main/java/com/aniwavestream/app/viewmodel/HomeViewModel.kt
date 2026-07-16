@@ -5,6 +5,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.ContinueItem
+import com.aniwavestream.app.data.model.DayAiring
+import com.aniwavestream.app.data.model.DemoNewReleases
+import com.aniwavestream.app.data.model.DemoSchedule
+import com.aniwavestream.app.data.model.DemoUpcoming
 import com.aniwavestream.app.data.model.ScheduleDays
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.repository.UserLibraryStore
@@ -26,7 +30,7 @@ data class HomeUiState(
     val newReleases: List<Anime> = emptyList(),
     val upcoming: List<Anime> = emptyList(),
     val scheduleDay: String = ScheduleDays[0],
-    val schedule: List<Anime> = emptyList(),
+    val schedule: List<DayAiring> = emptyList(),
     val continueWatching: List<ContinueItem> = emptyList()
 )
 
@@ -85,8 +89,8 @@ class HomeViewModel(
                     trending = trendingList,
                     topRated = topList,
                     seasonal = seasonalList,
-                    newReleases = nr.getOrDefault(emptyList()),
-                    upcoming = up.getOrDefault(emptyList())
+                    newReleases = nr.getOrDefault(emptyList()).ifEmpty { DemoNewReleases },
+                    upcoming = up.getOrDefault(emptyList()).ifEmpty { DemoUpcoming }
                 )
             }
             loadSchedule(_state.value.scheduleDay)
@@ -99,11 +103,9 @@ class HomeViewModel(
     }
 
     private fun loadSchedule(day: String) {
-        viewModelScope.launch {
-            repository.schedule(day).onSuccess { list ->
-                _state.update { it.copy(schedule = list) }
-            }
-        }
+        // anivave's weekly schedule is a timed (JST) list; we use the demo slate
+        // (the live Jikan /schedules endpoint doesn't return per-show air times).
+        _state.update { it.copy(schedule = DemoSchedule[day] ?: emptyList()) }
     }
 
     companion object {
