@@ -329,14 +329,14 @@ fun AnimeRankedCard(
                 .border(1.dp, Hairline, RoundedCornerShape(14.dp))
         ) {
             AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize(), showImage = true)
-            // Rank badge (big number, top-left)
+            // Rank badge (big number, top-left — tucked into the card corner)
             Box(
                 Modifier
                     .align(Alignment.TopStart)
-                    .padding(8.dp)
+                    .padding(top = 5.dp, start = 5.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color.Black.copy(alpha = 0.72f))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .padding(horizontal = 9.dp, vertical = 3.dp)
             ) {
                 Text(
                     "#$rank",
