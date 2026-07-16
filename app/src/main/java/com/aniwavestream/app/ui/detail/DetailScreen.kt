@@ -156,7 +156,7 @@ fun DetailScreen(
                 // whole screen. Light 6dp blur keeps character faces clearly visible. Below the
                 // hero the normal solid Background shows, so it no longer bleeds down to Play E1.
                 val bgUrl = a.posterUrl ?: a.bannerUrl
-                Box(Modifier.fillMaxWidth().height(360.dp)) {
+                Box(Modifier.fillMaxWidth().height(360.dp).clipToBounds()) {
                     if (bgUrl != null) {
                         AsyncImage(
                             model = bgUrl,
@@ -167,9 +167,10 @@ fun DetailScreen(
                                 .offset(x = offset.dp)
                                 .scale(scale)
                                 .blur(6.dp)
+                                .clipToBounds()
                         )
                     } else {
-                        AnivaveArt(anime = a, modifier = Modifier.fillMaxSize().blur(6.dp))
+                        AnivaveArt(anime = a, modifier = Modifier.fillMaxSize().blur(6.dp).clipToBounds())
                     }
                     // Fade only within the hero: transparent at the very top -> solid Background
                     // at the bottom edge of the band, so the title block stays readable and the
