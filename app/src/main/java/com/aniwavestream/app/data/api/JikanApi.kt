@@ -25,7 +25,7 @@ interface JikanApi {
     @GET("seasons/now")
     suspend fun seasonalNow(
         @Query("page") page: Int = 1,
-        @Query("limit") limit: Int = 20
+        @Query("limit") limit: Int? = null
     ): AnimeListResponse
 
     @GET("anime")
