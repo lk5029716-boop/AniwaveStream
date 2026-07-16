@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -146,8 +147,8 @@ fun DetailScreen(
                             .fillMaxWidth()
                             .height(580.dp)
                             .blur(6.dp)
-                            .clipToBounds(),
-                        alpha = 0.35f
+                            .clipToBounds()
+                            .alpha(0.35f)
                     )
                 }
 
