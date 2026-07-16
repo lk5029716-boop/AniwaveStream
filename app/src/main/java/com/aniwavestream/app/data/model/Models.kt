@@ -63,8 +63,9 @@ data class AnimeDto(
     @SerialName("aired") val aired: Aired? = null
 ) {
     val displayTitle: String get() = titleEnglish?.takeIf { it.isNotBlank() } ?: title
-    val posterUrl: String? get() = images?.jpg?.largeImageUrl ?: images?.jpg?.imageUrl
-    val bannerUrl: String? get() = images?.jpg?.largeImageUrl ?: posterUrl
+    val posterUrl: String? get() =
+        images?.jpg?.largeImageUrl ?: images?.jpg?.imageUrl ?: images?.webp?.largeImageUrl ?: images?.webp?.imageUrl
+    val bannerUrl: String? get() = posterUrl
 }
 
 @Serializable

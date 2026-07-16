@@ -197,12 +197,11 @@ fun SectionHeader(title: String, onSeeAll: (() -> Unit)? = null) {
 fun AnimePosterCard(
     anime: Anime,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier.width(120.dp),
     showScore: Boolean = true
 ) {
     Column(
         modifier
-            .width(120.dp)
             .clickable(onClick = onClick)
     ) {
         Box(
