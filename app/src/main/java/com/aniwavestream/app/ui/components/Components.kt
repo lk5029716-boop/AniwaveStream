@@ -216,50 +216,49 @@ fun AnimePosterCard(
                 anime = anime,
                 modifier = Modifier.fillMaxSize(),
                 showImage = true
-            ) {
-                if (showScore && anime.score != null) {
-                    Row(
-                        Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = null,
-                            tint = Gold,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(Modifier.width(2.dp))
-                        Text(
-                            String.format("%.1f", anime.score),
-                            color = TextPrimary,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                }
-                // Fallback: when there is no poster image, show the title centered on the
-                // gradient wash so the card reads as intentional (not broken/blank).
-                if (anime.posterUrl == null) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            anime.title,
-                            color = TextPrimary,
-                            fontFamily = Bricolage,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            textAlign = androidx.compose.ui.text.TextAlign.Center,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(10.dp)
-                        )
-                    }
+            )
+            if (showScore && anime.score != null) {
+                Row(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = null,
+                        tint = Gold,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        String.format("%.1f", anime.score),
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 }
             }
-        Spacer(Modifier.height(6.dp))
+            // Fallback: when there is no poster image, show the title centered on the
+            // gradient wash so the card reads as intentional (not broken/blank).
+            if (anime.posterUrl == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        anime.title,
+                        color = TextPrimary,
+                        fontFamily = Bricolage,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        textAlign = androidx.compose.ui.text.TextAlign.Center,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(10.dp)
+                    )
+                }
+            }
+        }
         Row(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
