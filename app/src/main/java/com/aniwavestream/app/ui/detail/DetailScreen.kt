@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.foundation.border.BorderStroke
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -205,7 +204,7 @@ fun DetailScreen(
                     ) {
                         Card(
                             shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, Hairline),
+                            border = androidx.compose.foundation.border.BorderStroke(1.dp, Hairline),
                             elevation = CardDefaults.cardElevation(8.dp),
                             modifier = Modifier
                                 .width(100.dp)
