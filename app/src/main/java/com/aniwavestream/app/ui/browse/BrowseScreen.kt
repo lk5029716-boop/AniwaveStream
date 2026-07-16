@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.BrowseGenres
 import com.aniwavestream.app.data.repository.AnimeRepository
