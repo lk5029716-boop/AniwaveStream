@@ -128,59 +128,57 @@ fun SeeAllScreen(
             )
         }
     ) { padding ->
-        Column(
-            Modifier
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(padding),
+            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Custom type-nav row
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                TYPE_FILTERS.forEach { t ->
-                    val active = t == typeFilter
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(50.dp))
-                            .background(if (active) Flame else Color.Transparent)
-                            .border(1.dp, Hairline, RoundedCornerShape(50.dp))
-                            .clickable { typeFilter = t; page = 0 }
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            t,
-                            color = if (active) Color.White else TextMuted,
-                            fontFamily = Bricolage,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp
-                        )
+            // Filter chips (full-width header row)
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TYPE_FILTERS.forEach { t ->
+                        val active = t == typeFilter
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(50.dp))
+                                .background(if (active) Flame else Color.Transparent)
+                                .border(1.dp, Hairline, RoundedCornerShape(50.dp))
+                                .clickable { typeFilter = t; page = 0 }
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                t,
+                                color = if (active) Color.White else TextMuted,
+                                fontFamily = Bricolage,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             }
 
-            // Scrollable poster grid (fills width like Browse) + pagination footer (no black void)
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(120.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(pageItems, key = { it.id }) { anime ->
-                    AnimePosterCard(anime = anime, onClick = { onAnimeClick(anime) })
-                }
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    PaginationBar(
-                        page = safePage,
-                        pageCount = pageCount,
-                        onPage = { page = it }
-                    )
-                }
+            // Poster grid (3 fixed columns, cards fill their cell)
+            items(pageItems, key = { it.id }) { anime ->
+                AnimePosterCard(anime = anime, onClick = { onAnimeClick(anime) })
+            }
+
+            // Pagination footer (full-width)
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                PaginationBar(
+                    page = safePage,
+                    pageCount = pageCount,
+                    onPage = { page = it }
+                )
             }
         }
     }
