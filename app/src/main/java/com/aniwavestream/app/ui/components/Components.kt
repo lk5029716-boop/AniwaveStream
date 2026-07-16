@@ -744,7 +744,7 @@ fun AnivaveHeroSlider(
                             )
                             Spacer(Modifier.height(6.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Star, contentDescription = null, tint = Gold, Modifier.size(13.dp))
+                                Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(13.dp), tint = Gold)
                                 Spacer(Modifier.width(3.dp))
                                 Text(
                                     anime.score?.let { "%.1f".format(it) } ?: "—",
