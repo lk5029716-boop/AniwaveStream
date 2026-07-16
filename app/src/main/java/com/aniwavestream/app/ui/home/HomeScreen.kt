@@ -137,6 +137,13 @@ fun HomeScreen(
                         Spacer(Modifier.height(8.dp))
                     }
 
+                    item { SectionHeader("POPULAR THIS SEASON", onSeeAll = { onViewAll(SeeAllKind.SEASONAL) }) }
+                    item {
+                        if (state.seasonal.isNotEmpty()) AnimeRow(state.seasonal, onAnimeClick)
+                        else SectionPlaceholder("Popular This Season is loading…")
+                        Spacer(Modifier.height(8.dp))
+                    }
+
                     item { SectionHeader("ALL TIME POPULAR", onSeeAll = { onViewAll(SeeAllKind.TOP_RATED) }) }
                     item {
                         if (state.topRated.isNotEmpty()) AnimeRow(state.topRated, onAnimeClick)
@@ -152,13 +159,6 @@ fun HomeScreen(
                         } else {
                             SectionPlaceholder("Top 100 is loading…")
                         }
-                        Spacer(Modifier.height(8.dp))
-                    }
-
-                    item { SectionHeader("POPULAR THIS SEASON", onSeeAll = { onViewAll(SeeAllKind.SEASONAL) }) }
-                    item {
-                        if (state.seasonal.isNotEmpty()) AnimeRow(state.seasonal, onAnimeClick)
-                        else SectionPlaceholder("Popular This Season is loading…")
                         Spacer(Modifier.height(8.dp))
                     }
 

@@ -74,8 +74,33 @@ class AnimeRepository(
     suspend fun seasonal(perPage: Int = 25): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
-            remember(page(AniListApi.query(SEASONAL_Q, { int("perPage", perPage) })).map { it.toAnime() })
+            val (season, year) = currentSeasonYear()
+            remember(
+                page(
+                    AniListApi.query(SEASONAL_Q) {
+                        str("season", season)
+                        int("year", year)
+                        int("perPage", perPage)
+                    }
+                ).map { it.toAnime() }
+            )
         }
+    }
+
+    /** AniList's Media.season arg requires an enum (WINTER/SPRING/SUMMER/FALL); CURRENT is
+     *  invalid there (it only works on AiringSchedule). Derive the real current season. */
+    private fun currentSeasonYear(): Pair<String, Int> {
+        val now = java.util.Calendar.getInstance()
+        val month = now.get(java.util.Calendar.MONTH) + 1
+        val year = now.get(java.util.Calendar.YEAR)
+        val season = when (month) {
+            in 3..5 -> "SPRING"
+            in 6..8 -> "SUMMER"
+            in 9..11 -> "FALL"
+            else -> "WINTER"
+        }
+        // Northern-hemisphere anime seasons: Winter = Jan–Mar (year), Spring = Apr–Jun, etc.
+        return season to year
     }
 
     suspend fun newReleases(perPage: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
@@ -182,9 +207,9 @@ query(${'$'}page: Int, ${'$'}perPage: Int) {
 }"""
 
 private const val SEASONAL_Q = """
-query(${'$'}perPage: Int) {
+query(${'$'}season: MediaSeason, ${'$'}year: Int, ${'$'}perPage: Int) {
   Page(page: 1, perPage: ${'$'}perPage) {
-    media(season: CURRENT, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
+    media(season: ${'$'}season, seasonYear: ${'$'}year, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
   }
 }"""
 
