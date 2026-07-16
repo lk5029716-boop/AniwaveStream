@@ -1,6 +1,7 @@
 package com.aniwavestream.app.data.api
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -50,7 +51,7 @@ object AniListApi {
         }
         val request = Request.Builder()
             .url(BASE)
-            .post(json.encodeToString(body).toRequestBody("application/json".toMediaType()))
+            .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody("application/json".toMediaType()))
             .build()
         client.newCall(request).execute().use { resp ->
             val text = resp.body?.string().orEmpty()
