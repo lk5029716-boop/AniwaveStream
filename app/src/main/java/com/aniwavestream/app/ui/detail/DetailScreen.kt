@@ -105,9 +105,10 @@ fun DetailScreen(
                     error = e
                     loading = false
                 }
-            // These are best-effort; never let them crash the screen into a white state.
-            runCatching { repository.characters(animeId) }.onSuccess { characters = it }
-            runCatching { repository.recommendations(animeId) }.onSuccess { related = it }
+            // characters/recommendations already return Result<> (internally runCatching),
+            // so a failed fetch lands in onFailure and never crashes the screen.
+            repository.characters(animeId).onSuccess { characters = it }
+            repository.recommendations(animeId).onSuccess { related = it }
         }
     }
 
