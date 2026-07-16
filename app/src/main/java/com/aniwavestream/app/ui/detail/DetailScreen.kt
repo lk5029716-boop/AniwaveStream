@@ -289,8 +289,6 @@ fun DetailScreen(
                 }
                 item {
                     Spacer(Modifier.height(20.dp))
-                    CharacterRow(characters = characters)
-                    Spacer(Modifier.height(8.dp))
                     AnivaveSectionCard("More Like This", related) { onRelated(it.id) }
                     Spacer(Modifier.height(24.dp))
                 }
