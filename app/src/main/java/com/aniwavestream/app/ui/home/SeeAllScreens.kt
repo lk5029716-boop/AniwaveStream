@@ -67,6 +67,7 @@ import com.aniwavestream.app.ui.theme.PlexMono
 import com.aniwavestream.app.ui.theme.TextPrimary
 import com.aniwavestream.app.ui.theme.TextMuted
 import com.aniwavestream.app.viewmodel.HomeViewModel
+import com.aniwavestream.app.viewmodel.SeeAllViewModel
 
 enum class SeeAllKind { TRENDING, TOP_RATED, SEASONAL, NEW_RELEASES, UPCOMING, CONTINUE, TOP_100 }
 
