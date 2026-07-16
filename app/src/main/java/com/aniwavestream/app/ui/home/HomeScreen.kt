@@ -36,6 +36,7 @@ import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.repository.UserLibraryStore
 import com.aniwavestream.app.ui.components.AnimeRow
 import com.aniwavestream.app.ui.components.AnivaveSectionCard
+import com.aniwavestream.app.ui.components.AnivaveSectionCardNoHeader
 import com.aniwavestream.app.ui.components.ContinueCard
 import com.aniwavestream.app.ui.components.ErrorBox
 import com.aniwavestream.app.ui.components.HomeShimmer
