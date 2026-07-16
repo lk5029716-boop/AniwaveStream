@@ -38,6 +38,7 @@ jobs:
 
       - name: Publish APK to nightly release
         uses: softprops/action-gh-release@v2
+        continue-on-error: true
         with:
           tag_name: nightly-apk
           name: Nightly Debug APK
