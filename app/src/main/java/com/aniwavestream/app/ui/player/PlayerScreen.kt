@@ -113,12 +113,21 @@ fun PlayerScreen(
         DemoStreams.forEpisode(animeId, episode)
     }
 
+    // All player mutations are guarded: if the player was released by a
+    // lifecycle/teardown race, touching it must NOT throw and force-close the
+    // whole app (the original "app closes itself" bug).
+    fun safePlayer(block: Player.() -> Unit) {
+        runCatching { exoPlayer.block() }
+    }
+
     LaunchedEffect(streamUrl) {
         vm.clearError()
         // DRM-ready item builder (Rule 12); demo streams pass no license URL.
-        exoPlayer.setMediaItem(PlayerModule.buildMediaItem(streamUrl))
-        exoPlayer.prepare()
-        exoPlayer.play()
+        safePlayer {
+            setMediaItem(PlayerModule.buildMediaItem(streamUrl))
+            prepare()
+            play()
+        }
     }
 
     // Rule 9c: lifecycle-aware pause so backgrounding never crashes.
@@ -126,7 +135,7 @@ fun PlayerScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             when (event) {
-                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> exoPlayer.pause()
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> runCatching { exoPlayer.pause() }
                 else -> Unit
             }
         }
@@ -284,9 +293,11 @@ fun PlayerScreen(
                 PlaybackErrorOverlay(
                     onRetry = {
                         vm.clearError()
-                        exoPlayer.setMediaItem(PlayerModule.buildMediaItem(streamUrl))
-                        exoPlayer.prepare()
-                        exoPlayer.play()
+                        safePlayer {
+                            setMediaItem(PlayerModule.buildMediaItem(streamUrl))
+                            prepare()
+                            play()
+                        }
                     }
                 )
             }
@@ -319,11 +330,11 @@ fun PlayerScreen(
         TrackSelectionSheet(
             state = trackState,
             onSelect = { track ->
-                currentTracks?.let { exoPlayer.selectTrack(track, it) }
+                runCatching { currentTracks?.let { exoPlayer.selectTrack(track, it) } }
                 showTrackSheet = false
             },
             onSubtitlesOff = {
-                exoPlayer.disableSubtitles()
+                runCatching { exoPlayer.disableSubtitles() }
                 showTrackSheet = false
             },
             onDismiss = { showTrackSheet = false }
