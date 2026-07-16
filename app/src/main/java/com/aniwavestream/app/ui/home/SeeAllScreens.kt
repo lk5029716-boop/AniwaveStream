@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -52,7 +53,7 @@ fun SeeAllScreen(
     onBack: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
-    val (title, items) = when (kind) {
+    val (title, list) = when (kind) {
         SeeAllKind.TRENDING -> "Trending Now" to state.trending
         SeeAllKind.TOP_RATED -> "Top Rated" to state.topRated
         SeeAllKind.SEASONAL -> "This Season" to state.seasonal
@@ -91,14 +92,14 @@ fun SeeAllScreen(
                     }
                     SeeAllKind.UPCOMING -> {
                         Column(Modifier.fillMaxWidth()) {
-                            if (items.isEmpty()) {
+                            if (list.isEmpty()) {
                                 Text("Nothing upcoming.", color = TextMuted, modifier = Modifier.padding(16.dp))
                             } else {
                                 LazyRow(
                                     contentPadding = PaddingValues(horizontal = 16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    items(items, key = { it.id }) { anime ->
+                                    items(list, key = { it.id }) { anime ->
                                         AnivaveUpcomingCard(anime, { onAnimeClick(anime) })
                                     }
                                 }
@@ -107,10 +108,10 @@ fun SeeAllScreen(
                         }
                     }
                     else -> {
-                        if (items.isEmpty()) {
+                        if (list.isEmpty()) {
                             Text("Nothing here yet.", color = TextMuted, modifier = Modifier.padding(16.dp))
                         } else {
-                            AnimeRow(items, onAnimeClick)
+                            AnimeRow(list, onAnimeClick)
                             androidx.compose.foundation.layout.Spacer(Modifier.padding(8.dp))
                         }
                     }
