@@ -94,6 +94,136 @@ data class NamedEntity(
 @Serializable
 data class Aired(val string: String? = null)
 
+/* ===================== AniList GraphQL models ===================== */
+
+@Serializable
+data class AlResponse(
+    val data: AlData? = null,
+    val errors: List<AlError>? = null
+)
+
+@Serializable
+data class AlError(val message: String = "")
+
+@Serializable
+data class AlData(
+    val Page: AlPage? = null,
+    val Media: AlMedia? = null
+)
+
+@Serializable
+data class AlPage(
+    val media: List<AlMedia> = emptyList(),
+    val pageInfo: AlPageInfo? = null
+)
+
+@Serializable
+data class AlPageInfo(@SerialName("hasNextPage") val hasNextPage: Boolean = false)
+
+@Serializable
+data class AlMedia(
+    val id: Int = 0,
+    @SerialName("idMal") val idMal: Int? = null,
+    val title: AlTitle? = null,
+    val coverImage: AlCoverImage? = null,
+    val bannerImage: String? = null,
+    val averageScore: Int? = null,
+    val episodes: Int? = null,
+    val seasonYear: Int? = null,
+    val format: String? = null,
+    val status: String? = null,
+    val description: String? = null,
+    val genres: List<String> = emptyList(),
+    val studios: AlStudioConnection? = null,
+    val characters: AlCharacterConnection? = null,
+    val recommendations: AlRecommendationConnection? = null
+)
+
+@Serializable
+data class AlTitle(
+    val romaji: String = "",
+    val english: String? = null,
+    val native: String? = null
+)
+
+@Serializable
+data class AlCoverImage(
+    val extraLarge: String? = null,
+    val large: String? = null,
+    val medium: String? = null,
+    val color: String? = null
+)
+
+@Serializable
+data class AlStudioConnection(val nodes: List<AlStudio> = emptyList())
+
+@Serializable
+data class AlStudio(val name: String = "")
+
+@Serializable
+data class AlCharacterConnection(val edges: List<AlCharacterEdge> = emptyList())
+
+@Serializable
+data class AlCharacterEdge(
+    val role: String? = null,
+    val node: AlCharacterNode? = null
+)
+
+@Serializable
+data class AlCharacterNode(
+    val id: Int = 0,
+    val name: AlName? = null,
+    val image: AlImage? = null
+)
+
+@Serializable
+data class AlName(val full: String = "")
+
+@Serializable
+data class AlImage(val large: String? = null)
+
+@Serializable
+data class AlRecommendationConnection(val nodes: List<AlRecommendationNode> = emptyList())
+
+@Serializable
+data class AlRecommendationNode(val media: AlMedia? = null)
+
+/** Strip HTML tags from AniList descriptions and fall back to romaji title. */
+fun AlMedia.toAnime(): Anime {
+    val poster = coverImage?.extraLarge ?: coverImage?.large ?: coverImage?.medium
+    val title = this.title?.english ?: this.title?.romaji ?: this.title?.native ?: ""
+    val synopsis = description
+        ?.replace(Regex("<br\\s*/?>"), "\n")
+        ?.replace(Regex("<[^>]*>"), "")
+        ?.trim()
+        .orEmpty()
+    return Anime(
+        id = idMal ?: id,
+        title = title,
+        synopsis = synopsis,
+        posterUrl = poster,
+        bannerUrl = bannerImage ?: poster,
+        score = averageScore?.toDouble()?.div(10.0),
+        episodes = episodes,
+        year = seasonYear,
+        type = format,
+        status = status,
+        rating = null,
+        genres = genres,
+        studios = studios?.nodes?.map { it.name } ?: emptyList()
+    )
+}
+
+fun AlCharacterEdge.toCharacter(): Character? {
+    val n = node ?: return null
+    return Character(
+        id = n.id,
+        name = n.name?.full ?: "",
+        imageUrl = n.image?.large,
+        role = role
+    )
+}
+
 /** In-app domain models */
 @Immutable
 data class Anime(

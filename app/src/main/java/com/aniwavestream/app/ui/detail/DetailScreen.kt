@@ -144,7 +144,9 @@ fun DetailScreen(
                     .background(Background)
             ) {
                 item {
-                    // Animated, slowly drifting, blurred anime backdrop (stays behind content)
+                    // Animated, slowly drifting, blurred anime backdrop (stays behind content).
+                    // Uses the AniList banner so the characters remain visible through a
+                    // light (16.dp) blur — not a full blur.
                     val bgUrl = a.bannerUrl ?: a.posterUrl
                     val trans = rememberInfiniteTransition(label = "bg")
                     val offset by trans.animateFloat(
@@ -167,10 +169,10 @@ fun DetailScreen(
                                     .fillMaxSize()
                                     .offset(x = offset.dp)
                                     .scale(scale)
-                                    .blur(28.dp)
+                                    .blur(16.dp)
                             )
                         } else {
-                            AnivaveArt(anime = a, modifier = Modifier.fillMaxSize().blur(28.dp))
+                            AnivaveArt(anime = a, modifier = Modifier.fillMaxSize().blur(16.dp))
                         }
                         Box(
                             Modifier.fillMaxSize().background(
@@ -312,7 +314,7 @@ fun DetailScreen(
                                 .padding(14.dp),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            InfoCell("SOURCE", "Jikan")
+                            InfoCell("SOURCE", "AniList")
                             InfoCell("STATUS", a.status ?: "—")
                             InfoCell("EPISODES", (a.episodes ?: 0).toString())
                         }

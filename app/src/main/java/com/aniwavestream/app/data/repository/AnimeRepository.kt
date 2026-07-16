@@ -1,25 +1,27 @@
 package com.aniwavestream.app.data.repository
 
-import com.aniwavestream.app.data.api.JikanApi
+import com.aniwavestream.app.data.api.AniListApi
+import com.aniwavestream.app.data.model.AlMedia
+import com.aniwavestream.app.data.model.AlResponse
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.Character
-import com.aniwavestream.app.data.model.CharacterEdgeDto
 import com.aniwavestream.app.data.model.toAnime
 import com.aniwavestream.app.data.model.toCharacter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 
 class AnimeRepository(
-    private val api: JikanApi = JikanApi.create()
+    private val json: Json = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true }
 ) {
     private val cache = mutableMapOf<Int, Anime>()
     private var lastCallMs = 0L
 
     private suspend fun throttle() {
-        // Jikan free tier ~3 req/s; keep a small gap between calls
+        // AniList rate limit is 90 req/min (no auth); keep a small gap between calls.
         val now = System.currentTimeMillis()
-        val wait = 400 - (now - lastCallMs)
+        val wait = 350 - (now - lastCallMs)
         if (wait > 0) delay(wait)
         lastCallMs = System.currentTimeMillis()
     }
@@ -29,39 +31,64 @@ class AnimeRepository(
         return list
     }
 
-    suspend fun topRated(limit: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
+    private fun parse(text: String): AlResponse {
+        val resp = json.decodeFromString<AlResponse>(text)
+        if (resp.errors?.isNotEmpty() == true) {
+            throw RuntimeException(resp.errors.first().message)
+        }
+        return resp
+    }
+
+    private fun page(text: String): List<AlMedia> =
+        parse(text).data?.Page?.media ?: emptyList()
+
+    // ---- Home / browse lists (all AniList GraphQL) ----
+
+    suspend fun trending(perPage: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
-            remember(api.topAnime(limit = limit).data.map { it.toAnime() })
+            remember(page(AniListApi.query(TRENDING_Q, { int("perPage", perPage) })).map { it.toAnime() })
         }
     }
 
+    suspend fun topRated(perPage: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            remember(page(AniListApi.query(POPULAR_Q, { int("perPage", perPage) })).map { it.toAnime() })
+        }
+    }
+
+    /** Top 100 by score — AniList caps perPage at 50, so fetch two pages. */
     suspend fun top100(): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
-            // Jikan's top/anime rejects limit > 25 (returns empty data), so paginate
-            // four pages of 25 to assemble a true top-100 list.
             val out = mutableListOf<Anime>()
-            for (page in 1..4) {
+            for (page in 1..2) {
                 throttle()
-                out += api.topAnime(page = page, limit = 25).data.map { it.toAnime() }
+                out += page(AniListApi.query(TOP100_Q, { int("page", page); int("perPage", 50) }))
+                    .map { it.toAnime() }
             }
-            remember(out)
+            remember(out.distinctBy { it.id })
         }
     }
 
-    suspend fun trending(limit: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
+    suspend fun seasonal(perPage: Int = 25): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
-            remember(api.topAnime(limit = limit, filter = "bypopularity").data.map { it.toAnime() })
+            remember(page(AniListApi.query(SEASONAL_Q, { int("perPage", perPage) })).map { it.toAnime() })
         }
     }
 
-    suspend fun seasonal(limit: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
+    suspend fun newReleases(perPage: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
-            // NOTE: Jikan's /seasons/now ignores/zeroes the `limit` query and returns
-            // an empty `data` array when it is present. Omit it so the season populates.
-            remember(api.seasonalNow().data.map { it.toAnime() })
+            remember(page(AniListApi.query(RELEASING_Q, { int("perPage", perPage) })).map { it.toAnime() })
+        }
+    }
+
+    suspend fun upcoming(perPage: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            remember(page(AniListApi.query(UPCOMING_Q, { int("perPage", perPage) })).map { it.toAnime() })
         }
     }
 
@@ -69,59 +96,152 @@ class AnimeRepository(
         runCatching {
             if (query.isBlank()) return@runCatching emptyList()
             throttle()
-            remember(api.search(query = query).data.map { it.toAnime() })
+            remember(page(AniListApi.query(SEARCH_Q, { str("q", query); int("perPage", 20) })).map { it.toAnime() })
         }
     }
 
     suspend fun byGenre(genreId: Int): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
+            val genre = GENRE_NAMES[genreId] ?: return@runCatching emptyList()
             throttle()
-            remember(api.byGenre(genreId = genreId).data.map { it.toAnime() })
+            remember(page(AniListApi.query(GENRE_Q, { str("genre", genre); int("perPage", 24) })).map { it.toAnime() })
         }
     }
+
+    // ---- Detail + extras ----
 
     suspend fun detail(id: Int): Result<Anime> = withContext(Dispatchers.IO) {
         runCatching {
             cache[id]?.let { return@runCatching it }
             throttle()
-            api.animeFull(id).data.toAnime().also { cache[it.id] = it }
-        }
-    }
-
-    suspend fun recommendations(id: Int): Result<List<Anime>> = withContext(Dispatchers.IO) {
-        runCatching {
-            throttle()
-            api.recommendations(id).data.map { it.toAnime() }
+            val media = parse(AniListApi.query(DETAIL_Q, { int("id", id) })).data?.Media
+                ?: throw RuntimeException("AniList: no media for id $id")
+            media.toAnime().also { cache[it.id] = it }
         }
     }
 
     suspend fun characters(id: Int): Result<List<Character>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
-            api.characters(id).data.mapNotNull { it.toCharacter() }.take(10)
+            val media = parse(AniListApi.query(CHAR_Q, { int("id", id) })).data?.Media
+            media?.characters?.edges
+                ?.mapNotNull { it.toCharacter() }
+                ?.take(12)
+                ?: emptyList()
         }
     }
 
-    suspend fun upcoming(limit: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
+    suspend fun recommendations(id: Int): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
-            remember(api.animeList(status = "upcoming", orderBy = "popularity", sort = "desc", limit = limit).data.map { it.toAnime() })
+            val media = parse(AniListApi.query(REC_Q, { int("id", id) })).data?.Media
+            media?.recommendations?.nodes
+                ?.mapNotNull { it.media }
+                ?.distinctBy { it.id }
+                ?.take(12)
+                ?.map { it.toAnime() }
+                ?: emptyList()
         }
     }
 
-    suspend fun newReleases(limit: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
-        runCatching {
-            throttle()
-            remember(api.animeList(status = "complete", orderBy = "score", sort = "desc", limit = limit).data.map { it.toAnime() })
-        }
-    }
-
-    suspend fun schedule(day: String, limit: Int = 14): Result<List<Anime>> = withContext(Dispatchers.IO) {
-        runCatching {
-            throttle()
-            api.schedules(day, limit = limit).data.map { it.toAnime() }
-        }
-    }
+    /** Weekly schedule — AniList has no curated weekly slate; keep the demo list. */
+    suspend fun schedule(day: String, perPage: Int = 14): Result<List<Anime>> =
+        Result.success(emptyList())
 
     fun cached(id: Int): Anime? = cache[id]
 }
+
+/* ===================== GraphQL queries ===================== */
+
+private const val MEDIA_FIELDS = """
+    id idMal title { romaji english native }
+    coverImage { extraLarge large medium color }
+    bannerImage averageScore episodes seasonYear format status description
+    genres studios(isMain: true) { nodes { name } }
+"""
+
+private const val TRENDING_Q = """
+query(${'${'$'}'}perPage: Int) {
+  Page(page: 1, perPage: ${'$'}perPage) {
+    media(sort: TRENDING_DESC, type: ANIME) { ${MEDIA_FIELDS} }
+  }
+}"""
+
+private const val POPULAR_Q = """
+query(${'${'$'}'}perPage: Int) {
+  Page(page: 1, perPage: ${'$'}perPage) {
+    media(sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
+  }
+}"""
+
+private const val TOP100_Q = """
+query(${'${'$'}'}page: Int, ${'$'}perPage: Int) {
+  Page(page: ${'$'}page, perPage: ${'$'}perPage) {
+    media(sort: SCORE_DESC, type: ANIME) { ${MEDIA_FIELDS} }
+  }
+}"""
+
+private const val SEASONAL_Q = """
+query(${'${'$'}'}perPage: Int) {
+  Page(page: 1, perPage: ${'$'}perPage) {
+    media(season: CURRENT, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
+  }
+}"""
+
+private const val RELEASING_Q = """
+query(${'${'$'}'}perPage: Int) {
+  Page(page: 1, perPage: ${'$'}perPage) {
+    media(status: RELEASING, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
+  }
+}"""
+
+private const val UPCOMING_Q = """
+query(${'${'$'}'}perPage: Int) {
+  Page(page: 1, perPage: ${'$'}perPage) {
+    media(status: NOT_YET_RELEASED, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
+  }
+}"""
+
+private const val SEARCH_Q = """
+query(${'${'$'}'}q: String, ${'$'}perPage: Int) {
+  Page(page: 1, perPage: ${'$'}perPage) {
+    media(search: ${'$'}q, sort: SEARCH_MATCH, type: ANIME) { ${MEDIA_FIELDS} }
+  }
+}"""
+
+private const val GENRE_Q = """
+query(${'${'$'}'}genre: String, ${'$'}perPage: Int) {
+  Page(page: 1, perPage: ${'$'}perPage) {
+    media(genre: ${'$'}genre, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
+  }
+}"""
+
+private const val DETAIL_Q = """
+query(${'${'$'}'}id: Int) {
+  Media(id: ${'$'}id, type: ANIME) { ${MEDIA_FIELDS} }
+}"""
+
+private const val CHAR_Q = """
+query(${'${'$'}'}id: Int) {
+  Media(id: ${'$'}id, type: ANIME) {
+    characters(sort: ROLE, perPage: 12) {
+      edges { role node { id name { full } image { large } } }
+    }
+  }
+}"""
+
+private const val REC_Q = """
+query(${'${'$'}'}id: Int) {
+  Media(id: ${'$'}id, type: ANIME) {
+    recommendations(sort: RATING_DESC, perPage: 12) {
+      nodes { media { ${MEDIA_FIELDS} } }
+    }
+  }
+}"""
+
+/** Maps the numeric BrowseGenres ids used by the UI to AniList genre names. */
+private val GENRE_NAMES = mapOf(
+    1 to "Action", 2 to "Adventure", 4 to "Comedy", 8 to "Drama",
+    10 to "Fantasy", 14 to "Horror", 7 to "Mystery", 22 to "Romance",
+    24 to "Sci-Fi", 36 to "Slice of Life", 30 to "Sports", 37 to "Supernatural"
+)
