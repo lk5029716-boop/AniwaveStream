@@ -5,6 +5,7 @@ import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.Character
 import com.aniwavestream.app.data.model.CharacterEdgeDto
 import com.aniwavestream.app.data.model.toAnime
+import com.aniwavestream.app.data.model.toCharacter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
