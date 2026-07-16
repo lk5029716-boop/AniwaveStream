@@ -37,6 +37,9 @@ import com.aniwavestream.app.data.repository.UserLibraryStore
 import com.aniwavestream.app.ui.components.AnimeRow
 import com.aniwavestream.app.ui.components.AnivaveSectionCard
 import com.aniwavestream.app.ui.components.AnivaveSectionCardNoHeader
+import com.aniwavestream.app.ui.components.AnivaveScheduleCard
+import com.aniwavestream.app.ui.components.AnivaveUpcomingCard
+import com.aniwavestream.app.ui.components.AnivaveNewReleasesGrid
 import com.aniwavestream.app.ui.components.ContinueCard
 import com.aniwavestream.app.ui.components.ErrorBox
 import com.aniwavestream.app.ui.components.HomeShimmer
@@ -148,20 +151,17 @@ fun HomeScreen(
                         }
                     }
 
-                    // New Releases (bottom, top untouched)
+                    // New Releases (bottom, top untouched) — anivave 2-col grid
                     item {
                         Column(Modifier.fillMaxWidth()) {
                             SectionHeader("New Releases")
                             Spacer(Modifier.height(4.dp))
-                            if (state.newReleases.isEmpty()) {
-                                Text("No new releases right now.", color = TextSecondary, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp))
-                            } else {
-                                AnivaveSectionCardNoHeader(state.newReleases, onAnimeClick)
-                            }
+                            AnivaveNewReleasesGrid(state.newReleases, onAnimeClick)
+                            Spacer(Modifier.height(8.dp))
                         }
                     }
 
-                    // Upcoming Anime (bottom)
+                    // Upcoming Anime (bottom) — anivave portrait cards + bell
                     item {
                         Column(Modifier.fillMaxWidth()) {
                             SectionHeader("Upcoming Anime")
@@ -169,12 +169,20 @@ fun HomeScreen(
                             if (state.upcoming.isEmpty()) {
                                 Text("Nothing upcoming.", color = TextSecondary, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp))
                             } else {
-                                AnivaveSectionCardNoHeader(state.upcoming, onAnimeClick)
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    items(state.upcoming.take(10), key = { it.id }) { anime ->
+                                        AnivaveUpcomingCard(anime, { onAnimeClick(anime) })
+                                    }
+                                }
                             }
+                            Spacer(Modifier.height(8.dp))
                         }
                     }
 
-                    // Weekly Schedule (bottom)
+                    // Weekly Schedule (bottom) — anivave timed card
                     item {
                         Column(Modifier.fillMaxWidth()) {
                             SectionHeader("Weekly Schedule")
@@ -203,12 +211,14 @@ fun HomeScreen(
                                     }
                                 }
                             }
-                            Spacer(Modifier.height(8.dp))
-                            if (state.schedule.isEmpty()) {
-                                Text("No airing shows for this day.", color = TextSecondary, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp))
-                            } else {
-                                AnimeRow(state.schedule, onAnimeClick)
-                            }
+                            Spacer(Modifier.height(10.dp))
+                            val activeDayLabel = "Today's Schedule — " + state.scheduleDay.replaceFirstChar { it.uppercase() }
+                            AnivaveScheduleCard(
+                                dayLabel = activeDayLabel,
+                                shows = state.schedule,
+                                onItem = onAnimeClick,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
                             Spacer(Modifier.height(8.dp))
                         }
                     }

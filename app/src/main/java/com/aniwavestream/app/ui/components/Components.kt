@@ -17,20 +17,21 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SearchOff
@@ -45,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -999,5 +1001,208 @@ fun CharacterRow(
             }
         }
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/**
+ * Anivave "Upcoming Anime" card — 280-style portrait card with purple
+ * UPCOMING badge, cool countdown text, and a bell alert toggle.
+ */
+@Composable
+fun AnivaveUpcomingCard(
+    anime: Anime,
+    onItem: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var alertOn by remember { mutableStateOf(false) }
+    Row(
+        modifier
+            .width(280.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .border(1.dp, Hairline, RoundedCornerShape(18.dp))
+            .background(SurfaceRaised.copy(alpha = 0.6f))
+            .clickable { onItem() }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Portrait art
+        Box(
+            Modifier
+                .size(74.dp, 100.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .border(1.dp, Hairline, RoundedCornerShape(10.dp))
+        ) {
+            AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize())
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Purple.copy(alpha = 0.15f))
+                    .border(1.dp, Purple.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 6.dp, vertical = 1.dp)
+            ) {
+                Text("UPCOMING", color = Purple, fontFamily = PlexMono, fontSize = 8.sp, fontWeight = FontWeight.Medium)
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                anime.title,
+                color = TextPrimary,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Schedule, contentDescription = null, tint = Cool, modifier = Modifier.size(11.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    anime.year?.let { "AIRING ${it}" } ?: (anime.status ?: "SOON"),
+                    color = Cool,
+                    fontFamily = PlexMono,
+                    fontSize = 9.sp
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                (anime.episodes?.let { "${it} eps" } ?: "TBA") + " · ${anime.type ?: ""}",
+                color = TextSecondary,
+                fontFamily = PlexMono,
+                fontSize = 9.sp
+            )
+        }
+        // Bell alert toggle
+        Box(
+            Modifier
+                .size(28.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, Hairline, RoundedCornerShape(8.dp))
+                .background(if (alertOn) Flame.copy(alpha = 0.15f) else SurfaceRaised)
+                .clickable { alertOn = !alertOn },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Filled.Notifications,
+                contentDescription = "Alert",
+                tint = if (alertOn) Flame else TextMuted,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Anivave "Weekly Schedule" — surface card with timed list of shows.
+ */
+@Composable
+fun AnivaveScheduleCard(
+    dayLabel: String,
+    shows: List<Anime>,
+    onItem: (Anime) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .border(1.dp, Hairline, RoundedCornerShape(20.dp))
+            .background(SurfaceRaised.copy(alpha = 0.6f))
+            .padding(14.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(dayLabel, color = TextPrimary, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(Cool.copy(alpha = 0.15f))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text("JST BROADCAST", color = Cool, fontFamily = PlexMono, fontSize = 9.sp)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        if (shows.isEmpty()) {
+            Text("No airing shows for this day.", color = TextSecondary, fontFamily = PlexMono, fontSize = 12.sp)
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                shows.take(8).forEach { a ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .border(1.dp, Hairline, RoundedCornerShape(10.dp))
+                            .background(Background.copy(alpha = 0.5f))
+                            .clickable { onItem(a) }
+                            .padding(8.dp, 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "JST",
+                            color = Flame,
+                            fontFamily = PlexMono,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.width(44.dp)
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(a.title, color = TextPrimary, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(a.type ?: "Airing", color = TextMuted, fontFamily = PlexMono, fontSize = 8.5.sp)
+                        }
+                        Text("●", color = Cool, fontSize = 10.sp, fontFamily = PlexMono)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Anivave "New Releases" — 2-column grid of landscape tiles.
+ */
+@Composable
+fun AnivaveNewReleasesGrid(
+    items: List<Anime>,
+    onItem: (Anime) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (items.isEmpty()) {
+        Text("No new releases right now.", color = TextSecondary, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp))
+    } else {
+        FlowRow(
+            modifier = modifier.fillMaxWidth(),
+            maxItemsInEachRow = 2,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items.take(6).forEach { anime ->
+                Column(
+                    Modifier
+                        .fillMaxWidth(0.5f)
+                        .clickable { onItem(anime) }
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+                    ) {
+                        AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize())
+                        Box(Modifier.align(Alignment.TopStart).padding(8.dp)) {
+                            Text("NEW", color = Flame, fontFamily = PlexMono, fontSize = 8.sp, fontWeight = FontWeight.Medium,
+                                modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(Flame.copy(alpha = 0.2f)).border(1.dp, Flame.copy(alpha = 0.4f), RoundedCornerShape(4.dp)).padding(3.dp, 1.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(anime.title, color = TextPrimary, fontSize = 12.5.sp, fontFamily = PlexMono, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
     }
 }
