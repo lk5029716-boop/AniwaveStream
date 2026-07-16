@@ -17,6 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.border.BorderStroke
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,6 +50,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.graphicsLayer
+import coil.compose.AsyncImage
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.DemoStreams
 import com.aniwavestream.app.data.model.Character
@@ -134,22 +147,40 @@ fun DetailScreen(
                     .background(Background)
             ) {
                 item {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(360.dp)
-                            .border(1.dp, Hairline, RoundedCornerShape(24.dp))
-                    ) {
-                        AnivaveArt(anime = a, modifier = Modifier.fillMaxSize())
+                    // Animated, slowly drifting, blurred anime backdrop (stays behind content)
+                    val bgUrl = a.bannerUrl ?: a.posterUrl
+                    val trans = rememberInfiniteTransition(label = "bg")
+                    val offset by trans.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 40f,
+                        animationSpec = infiniteRepeatable(tween(9000), RepeatMode.Reverse)
+                    )
+                    val scale by trans.animateFloat(
+                        initialValue = 1.15f,
+                        targetValue = 1.3f,
+                        animationSpec = infiniteRepeatable(tween(12000), RepeatMode.Reverse)
+                    )
+                    Box(Modifier.fillMaxWidth().height(360.dp)) {
+                        if (bgUrl != null) {
+                            AsyncImage(
+                                model = bgUrl,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer { translationX = -offset.dp.toPx(); scaleX = scale; scaleY = scale }
+                                    .blur(28.dp)
+                            )
+                        } else {
+                            AnivaveArt(anime = a, modifier = Modifier.fillMaxSize().blur(28.dp))
+                        }
                         Box(
-                            Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(Color.Transparent, Background),
-                                        startY = 40f, endY = 460f
-                                    )
+                            Modifier.fillMaxSize().background(
+                                Brush.verticalGradient(
+                                    listOf(Color.Transparent, Background),
+                                    startY = 40f, endY = 460f
                                 )
+                            )
                         )
                         IconButton(
                             onClick = onBack,
@@ -158,73 +189,94 @@ fun DetailScreen(
                                 .clip(CircleShape)
                                 .background(Color.Black.copy(0.45f))
                         ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        }
+                    }
+                }
+                item {
+                    // Left mini poster card + right-side title block
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .offset(y = (-48).dp),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, Hairline),
+                            elevation = CardDefaults.cardElevation(8.dp),
+                            modifier = Modifier
+                                .width(100.dp)
+                                .height(150.dp)
+                        ) {
+                            AsyncImage(
+                                model = a.posterUrl,
+                                contentDescription = a.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
                             )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            // Studio / source eyebrow
+                            Row(
+                                Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.Black.copy(alpha = 0.4f))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    Modifier.size(5.dp).clip(CircleShape).background(Flame)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    a.studios.firstOrNull() ?: "FEATURED",
+                                    color = Flame,
+                                    fontFamily = PlexMono,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 10.sp,
+                                    letterSpacing = 1.sp
+                                )
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                a.title,
+                                color = TextPrimary,
+                                fontFamily = Bricolage,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 24.sp,
+                                lineHeight = 28.sp,
+                                letterSpacing = (-0.5).sp
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (a.score != null) {
+                                    Icon(Icons.Default.Star, contentDescription = null, tint = Gold, modifier = Modifier.size(13.dp))
+                                    Spacer(Modifier.width(3.dp))
+                                    Text(
+                                        "%.1f".format(a.score),
+                                        color = Gold,
+                                        fontFamily = PlexMono,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 11.sp
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                }
+                                Text(
+                                    listOfNotNull(a.year?.toString(), a.type, a.status).joinToString(" · "),
+                                    color = TextSecondary,
+                                    fontFamily = PlexMono,
+                                    fontSize = 11.sp
+                                )
+                            }
                         }
                     }
                 }
                 item {
                     Column(Modifier.padding(horizontal = 16.dp)) {
-                        // Studio / source eyebrow
-                        Row(
-                            Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color.Black.copy(alpha = 0.4f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                Modifier
-                                    .size(5.dp)
-                                    .clip(CircleShape)
-                                    .background(Flame)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                a.studios.firstOrNull() ?: "FEATURED",
-                                color = Flame,
-                                fontFamily = PlexMono,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 10.sp,
-                                letterSpacing = 1.sp
-                            )
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            a.title,
-                            color = TextPrimary,
-                            fontFamily = Bricolage,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 26.sp,
-                            lineHeight = 30.sp,
-                            letterSpacing = (-0.5).sp
-                        )
                         Spacer(Modifier.height(8.dp))
-                        // Rating + type/status row
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (a.score != null) {
-                                Icon(Icons.Default.Star, contentDescription = null, tint = Gold, modifier = Modifier.size(13.dp))
-                                Spacer(Modifier.width(3.dp))
-                                Text(
-                                    "%.1f".format(a.score),
-                                    color = Gold,
-                                    fontFamily = PlexMono,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 11.sp
-                                )
-                                Spacer(Modifier.width(10.dp))
-                            }
-                            Text(
-                                listOfNotNull(a.year?.toString(), a.type, a.status).joinToString(" · "),
-                                color = TextSecondary,
-                                fontFamily = PlexMono,
-                                fontSize = 11.sp
-                            )
-                        }
-                        Spacer(Modifier.height(12.dp))
                         // Genre pills
                         androidx.compose.foundation.lazy.LazyRow(
                             contentPadding = PaddingValues(0.dp),
