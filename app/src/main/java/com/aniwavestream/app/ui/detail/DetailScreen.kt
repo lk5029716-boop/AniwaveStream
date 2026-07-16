@@ -47,10 +47,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.DemoStreams
+import com.aniwavestream.app.data.model.Character
 import com.aniwavestream.app.data.model.Episode
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.repository.UserLibraryStore
 import com.aniwavestream.app.ui.components.EpisodeCard
+import com.aniwavestream.app.ui.components.AnivaveSectionCard
+import com.aniwavestream.app.ui.components.CharacterRow
 import com.aniwavestream.app.ui.components.EpisodeListShimmer
 import com.aniwavestream.app.ui.components.ErrorBox
 import com.aniwavestream.app.ui.components.PrimaryPillButton
@@ -80,41 +83,39 @@ fun DetailScreen(
 ) {
     var anime by remember { mutableStateOf<Anime?>(null) }
     var episodes by remember { mutableStateOf<List<Episode>>(emptyList()) }
+    var characters by remember { mutableStateOf<List<Character>>(emptyList()) }
+    var related by remember { mutableStateOf<List<Anime>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<Throwable?>(null) }
     val myList by library.myListIds.collectAsState(initial = emptySet())
     val inList = animeId in myList
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(animeId) {
+    fun loadAll() {
         loading = true
         error = null
-        repository.detail(animeId)
-            .onSuccess {
-                anime = it
-                episodes = DemoStreams.buildEpisodes(it)
-                loading = false
-            }
-            .onFailure {
-                error = it
-                loading = false
-            }
+        scope.launch {
+            repository.detail(animeId)
+                .onSuccess {
+                    anime = it
+                    episodes = DemoStreams.buildEpisodes(it)
+                    loading = false
+                }
+                .onFailure { e ->
+                    error = e
+                    loading = false
+                }
+            repository.characters(animeId).onSuccess { characters = it }
+            repository.recommendations(animeId).onSuccess { related = it }
+        }
     }
+
+    LaunchedEffect(animeId) { loadAll() }
 
     when {
         loading -> EpisodeListShimmer(modifier = Modifier.fillMaxSize().background(Background))
         error != null -> ErrorBox(error!!) {
-            scope.launch {
-                loading = true
-                error = null
-                repository.detail(animeId)
-                    .onSuccess {
-                        anime = it
-                        episodes = DemoStreams.buildEpisodes(it)
-                        loading = false
-                    }
-                    .onFailure { e -> error = e; loading = false }
-            }
+            loadAll()
         }
         anime != null -> {
             val a = anime!!
@@ -284,7 +285,13 @@ fun DetailScreen(
                         onClick = { onPlay(ep.number) }
                     )
                 }
-                item { Spacer(Modifier.height(32.dp)) }
+                item {
+                    Spacer(Modifier.height(20.dp))
+                    CharacterRow(characters = characters)
+                    Spacer(Modifier.height(12.dp))
+                    AnivaveSectionCard("Related Discoveries", related, onAnimeClick)
+                    Spacer(Modifier.height(24.dp))
+                }
             }
         }
     }

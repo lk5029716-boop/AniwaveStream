@@ -16,6 +16,25 @@ data class AnimeDetailResponse(
 )
 
 @Serializable
+data class CharacterListResponse(
+    val data: List<CharacterEdgeDto> = emptyList()
+)
+
+@Serializable
+data class CharacterEdgeDto(
+    val character: CharacterDto? = null,
+    val role: String? = null
+)
+
+@Serializable
+data class CharacterDto(
+    @SerialName("mal_id") val malId: Int = 0,
+    val name: String = "",
+    val images: Images? = null,
+    val url: String? = null
+)
+
+@Serializable
 data class Pagination(
     @SerialName("last_visible_page") val lastVisiblePage: Int = 1,
     @SerialName("has_next_page") val hasNextPage: Boolean = false
@@ -167,3 +186,25 @@ val BrowseGenres = listOf(
     GenreChip(30, "Sports"),
     GenreChip(37, "Supernatural")
 )
+
+@Immutable
+data class Character(
+    val id: Int,
+    val name: String,
+    val imageUrl: String?,
+    val role: String?
+)
+
+fun CharacterEdgeDto.toCharacter(): Character? {
+    val c = character ?: return null
+    return Character(
+        id = c.malId,
+        name = c.name,
+        imageUrl = c.images?.jpg?.largeImageUrl ?: c.images?.jpg?.imageUrl,
+        role = role
+    )
+}
+
+/** Airing anime for a weekday (Jikan schedules). */
+val ScheduleDays = listOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.ContinueItem
+import com.aniwavestream.app.data.model.ScheduleDays
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.repository.UserLibraryStore
 import kotlinx.coroutines.async
@@ -22,6 +23,10 @@ data class HomeUiState(
     val trending: List<Anime> = emptyList(),
     val topRated: List<Anime> = emptyList(),
     val seasonal: List<Anime> = emptyList(),
+    val newReleases: List<Anime> = emptyList(),
+    val upcoming: List<Anime> = emptyList(),
+    val scheduleDay: String = ScheduleDays[0],
+    val schedule: List<Anime> = emptyList(),
     val continueWatching: List<ContinueItem> = emptyList()
 )
 
@@ -52,12 +57,16 @@ class HomeViewModel(
             _state.update { it.copy(loading = true, error = null) }
             val trending = async { repository.trending() }
             val top = async { repository.topRated() }
+            val newRel = async { repository.newReleases() }
+            val upc = async { repository.upcoming() }
             // sequential-ish via throttle inside repo; still fire after first batch
             val t = trending.await()
             val r = top.await()
+            val nr = newRel.await()
+            val up = upc.await()
             val s = repository.seasonal()
 
-            val errors = listOf(t, r, s).mapNotNull { it.exceptionOrNull()?.message }
+            val errors = listOf(t, r, s, nr, up).mapNotNull { it.exceptionOrNull()?.message }
             if (t.isFailure && r.isFailure && s.isFailure) {
                 _state.update {
                     it.copy(loading = false, error = errors.firstOrNull() ?: "Failed to load catalog")
@@ -75,8 +84,24 @@ class HomeViewModel(
                     hero = seasonalList.firstOrNull() ?: trendingList.firstOrNull() ?: topList.firstOrNull(),
                     trending = trendingList,
                     topRated = topList,
-                    seasonal = seasonalList
+                    seasonal = seasonalList,
+                    newReleases = nr.getOrDefault(emptyList()),
+                    upcoming = up.getOrDefault(emptyList())
                 )
+            }
+            loadSchedule(it.scheduleDay)
+        }
+    }
+
+    fun setScheduleDay(day: String) {
+        _state.update { it.copy(scheduleDay = day) }
+        loadSchedule(day)
+    }
+
+    private fun loadSchedule(day: String) {
+        viewModelScope.launch {
+            repository.schedule(day).onSuccess { list ->
+                _state.update { it.copy(schedule = list) }
             }
         }
     }

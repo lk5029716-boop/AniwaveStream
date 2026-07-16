@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.repository.UserLibraryStore
 import com.aniwavestream.app.ui.components.AnimeRow
+import com.aniwavestream.app.ui.components.AnivaveSectionCard
 import com.aniwavestream.app.ui.components.ContinueCard
 import com.aniwavestream.app.ui.components.ErrorBox
 import com.aniwavestream.app.ui.components.HomeShimmer
@@ -31,6 +32,11 @@ import com.aniwavestream.app.ui.components.SectionHeader
 import com.aniwavestream.app.ui.components.AnivaveHeroSlider
 import com.aniwavestream.app.ui.components.AnivaveChipRow
 import com.aniwavestream.app.ui.theme.Background
+import com.aniwavestream.app.ui.theme.Flame
+import com.aniwavestream.app.ui.theme.Hairline
+import com.aniwavestream.app.ui.theme.PlexMono
+import com.aniwavestream.app.ui.theme.SurfaceRaised
+import com.aniwavestream.app.ui.theme.Void
 import com.aniwavestream.app.viewmodel.HomeViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -121,19 +127,57 @@ fun HomeScreen(
                         }
                     }
 
-                    if (state.seasonal.isNotEmpty()) {
-                        item { SectionHeader("This Season") }
-                        item {
-                            AnimeRow(state.seasonal, onAnimeClick)
-                            Spacer(Modifier.height(8.dp))
-                        }
-                    }
-
                     if (state.topRated.isNotEmpty()) {
                         item { SectionHeader("Top Rated") }
                         item {
                             AnimeRow(state.topRated, onAnimeClick)
-                            Spacer(Modifier.height(24.dp))
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+
+                    if (state.newReleases.isNotEmpty()) {
+                        item { AnivaveSectionCard("New Releases", state.newReleases, onAnimeClick) }
+                    }
+
+                    if (state.upcoming.isNotEmpty()) {
+                        item { AnivaveSectionCard("Upcoming Anime", state.upcoming, onAnimeClick) }
+                    }
+
+                    // Weekly Schedule
+                    item {
+                        Column(Modifier.fillMaxWidth()) {
+                            SectionHeader("Weekly Schedule")
+                            Spacer(Modifier.height(6.dp))
+                            val days = com.aniwavestream.app.data.model.ScheduleDays
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(days, key = { it }) { day ->
+                                    val active = day == state.scheduleDay
+                                    Box(
+                                        Modifier
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(if (active) Flame else SurfaceRaised)
+                                            .border(1.dp, if (active) Flame else Hairline, RoundedCornerShape(10.dp))
+                                            .clickable { viewModel.setScheduleDay(day) }
+                                            .padding(horizontal = 14.dp, vertical = 7.dp)
+                                    ) {
+                                        Text(
+                                            day.replaceFirstChar { it.uppercase() },
+                                            color = if (active) Void else TextSecondary,
+                                            fontFamily = PlexMono,
+                                            fontSize = 12.5.sp
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            if (state.schedule.isNotEmpty()) {
+                                AnimeRow(state.schedule, onAnimeClick)
+                            } else {
+                                Spacer(Modifier.height(24.dp))
+                            }
                         }
                     }
                 }

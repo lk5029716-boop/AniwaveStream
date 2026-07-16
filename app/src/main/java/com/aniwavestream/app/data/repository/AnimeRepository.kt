@@ -2,6 +2,7 @@ package com.aniwavestream.app.data.repository
 
 import com.aniwavestream.app.data.api.JikanApi
 import com.aniwavestream.app.data.model.Anime
+import com.aniwavestream.app.data.model.Character
 import com.aniwavestream.app.data.model.toAnime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -67,6 +68,41 @@ class AnimeRepository(
             cache[id]?.let { return@runCatching it }
             throttle()
             api.animeFull(id).data.toAnime().also { cache[it.id] = it }
+        }
+    }
+
+    suspend fun recommendations(id: Int): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            api.recommendations(id).data.map { it.toAnime() }
+        }
+    }
+
+    suspend fun characters(id: Int): Result<List<Character>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            api.characters(id).data.mapNotNull { it.toCharacter() }.take(10)
+        }
+    }
+
+    suspend fun upcoming(limit: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            remember(api.animeList(status = "upcoming", orderBy = "popularity", sort = "desc", limit = limit).data.map { it.toAnime() })
+        }
+    }
+
+    suspend fun newReleases(limit: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            remember(api.animeList(status = "complete", orderBy = "score", sort = "desc", limit = limit).data.map { it.toAnime() })
+        }
+    }
+
+    suspend fun schedule(day: String, limit: Int = 14): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            api.schedules(day, limit = limit).data.map { it.toAnime() }
         }
     }
 

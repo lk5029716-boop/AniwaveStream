@@ -51,6 +51,27 @@ interface JikanApi {
     @GET("anime/{id}/recommendations")
     suspend fun recommendations(@Path("id") id: Int): AnimeListResponse
 
+    @GET("anime/{id}/characters")
+    suspend fun characters(@Path("id") id: Int): CharacterListResponse
+
+    @GET("anime")
+    suspend fun animeList(
+        @Query("status") status: String? = null,
+        @Query("order_by") orderBy: String? = null,
+        @Query("sort") sort: String? = null,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+        @Query("sfw") sfw: Boolean = true
+    ): AnimeListResponse
+
+    @GET("schedules")
+    suspend fun schedules(
+        @Query("filter") day: String? = null,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+        @Query("sfw") sfw: Boolean = true
+    ): AnimeListResponse
+
     companion object {
         private const val BASE = "https://api.jikan.moe/v4/"
 

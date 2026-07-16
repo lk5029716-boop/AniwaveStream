@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.aniwavestream.app.data.model.Anime
+import com.aniwavestream.app.data.model.Character
 import com.aniwavestream.app.data.model.Episode
 import com.aniwavestream.app.ui.theme.AnivaveArt
 import com.aniwavestream.app.ui.theme.Background
@@ -400,7 +401,7 @@ fun EpisodeCard(
                     .align(Alignment.TopStart)
                     .padding(6.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(OrangePrimary)
+                    .background(Flame)
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             )
             // Integrated watch-progress bar on the bottom edge of the image
@@ -411,7 +412,7 @@ fun EpisodeCard(
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .height(3.dp),
-                    color = OrangePrimary,
+                    color = Flame,
                     trackColor = Color.Black.copy(alpha = 0.4f)
                 )
             }
@@ -419,18 +420,30 @@ fun EpisodeCard(
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
+                "Episode ${episode.number}",
+                color = Flame,
+                fontFamily = PlexMono,
+                fontWeight = FontWeight.Medium,
+                fontSize = 11.sp,
+                letterSpacing = 1.sp
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
                 episode.title,
                 color = TextPrimary,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
+                fontFamily = Bricolage,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                lineHeight = 19.sp,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                "Episode ${episode.number} · ${episode.durationLabel}",
+                episode.durationLabel,
                 color = TextMuted,
-                style = MaterialTheme.typography.bodySmall
+                fontFamily = PlexMono,
+                fontSize = 11.sp
             )
         }
     }
@@ -833,5 +846,120 @@ private fun AnivaveChip(label: String, active: Boolean, onClick: () -> Unit) {
             fontWeight = FontWeight.Medium,
             fontSize = 12.5.sp
         )
+    }
+}
+
+/**
+ * Anivave "section" — a titled card holding a horizontal strip of gradient
+ * mini-posters. Used for New Releases / Upcoming rows.
+ */
+@Composable
+fun AnivaveSectionCard(
+    title: String,
+    items: List<Anime>,
+    onItem: (Anime) -> Unit
+) {
+    if (items.isEmpty()) return
+    Column(Modifier.fillMaxWidth()) {
+        SectionHeader(title)
+        Spacer(Modifier.height(4.dp))
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(items, key = { it.id }) { anime ->
+                Column(
+                    Modifier
+                        .width(130.dp)
+                        .clickable { onItem(anime) }
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(2f / 3f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+                    ) {
+                        AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize())
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        anime.title,
+                        color = TextPrimary,
+                        fontSize = 13.sp,
+                        fontFamily = PlexMono,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+/**
+ * Anivave character row — circular gradient portraits with name (same art style).
+ */
+@Composable
+fun CharacterRow(
+    characters: List<Character>,
+    onItem: (Character) -> Unit = {}
+) {
+    if (characters.isEmpty()) return
+    Column(Modifier.fillMaxWidth()) {
+        SectionHeader("Key Characters")
+        Spacer(Modifier.height(6.dp))
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(characters, key = { it.id }) { ch ->
+                Column(
+                    Modifier
+                        .width(86.dp)
+                        .clickable { onItem(ch) },
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        Modifier
+                            .size(86.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, Flame.copy(alpha = 0.7f), CircleShape)
+                    ) {
+                        if (ch.imageUrl != null) {
+                            AsyncImage(
+                                model = ch.imageUrl,
+                                contentDescription = ch.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Box(Modifier.fillMaxSize().background(SurfaceRaised))
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        ch.name,
+                        color = TextPrimary,
+                        fontSize = 12.sp,
+                        fontFamily = PlexMono,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                    ch.role?.let {
+                        Text(
+                            it,
+                            color = TextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = PlexMono,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
     }
 }
