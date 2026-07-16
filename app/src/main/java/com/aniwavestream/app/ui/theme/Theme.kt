@@ -14,7 +14,7 @@ import com.aniwavestream.app.R
 // Anivave signature typefaces (downloaded into res/font).
 val Bricolage = FontFamily(
     Font(R.font.bricolage_grotesque, FontWeight.W400),
-    Font(R.font.bricolage_grotesque, FontWeight.S600),
+    Font(R.font.bricolage_grotesque, FontWeight.W600),
     Font(R.font.bricolage_grotesque, FontWeight.W700),
     Font(R.font.bricolage_grotesque, FontWeight.W800)
 )
