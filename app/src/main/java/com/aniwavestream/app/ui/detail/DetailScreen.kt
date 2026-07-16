@@ -176,11 +176,9 @@ fun DetailScreen(
                     Box(
                         Modifier.fillMaxSize().background(
                             Brush.verticalGradient(
-                                listOf(
-                                    0.0f to Color.Transparent,
-                                    0.45f to Background,
-                                    1.0f to Background
-                                )
+                                0.0f to Color.Transparent,
+                                0.45f to Background,
+                                1.0f to Background
                             )
                         )
                     )
