@@ -34,3 +34,13 @@ jobs:
         with:
           name: apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Publish APK to nightly release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly-apk
+          name: Nightly Debug APK
+          body: "Auto-built debug APK from player-force-close-fix. Install to preview the Anivave design port."
+          files: app/build/outputs/apk/debug/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
