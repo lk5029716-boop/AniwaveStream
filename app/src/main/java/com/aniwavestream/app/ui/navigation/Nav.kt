@@ -58,6 +58,7 @@ import com.aniwavestream.app.ui.theme.TextMuted
 import com.aniwavestream.app.ui.theme.TextPrimary
 import com.aniwavestream.app.viewmodel.HomeViewModel
 import com.aniwavestream.app.viewmodel.LibraryViewModel
+import com.aniwavestream.app.viewmodel.SeeAllViewModel
 
 sealed class Route(val path: String) {
     data object Home : Route("home")
@@ -179,9 +180,11 @@ fun AniwaveNavHost(
             ) { entry ->
                 val kindName = entry.arguments?.getString("kind") ?: SeeAllKind.TRENDING.name
                 val kind = SeeAllKind.entries.firstOrNull { it.name == kindName } ?: SeeAllKind.TRENDING
+                val seeAllVm: SeeAllViewModel = viewModel(factory = SeeAllViewModel.factory(repository))
                 SeeAllScreen(
                     kind = kind,
-                    viewModel = homeVm,
+                    viewModel = seeAllVm,
+                    homeViewModel = homeVm,
                     onAnimeClick = { openDetail(it.id) },
                     onBack = { nav.popBackStack() }
                 )

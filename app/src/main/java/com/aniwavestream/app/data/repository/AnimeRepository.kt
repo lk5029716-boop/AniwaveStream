@@ -87,6 +87,38 @@ class AnimeRepository(
         }
     }
 
+    /** Paged variant for the "See All" screen — fetches a server page of the current season
+     *  without depending on HomeViewModel's shared state (so opening See All never triggers a
+     *  home reload). */
+    suspend fun seasonalPage(pageNum: Int, perPage: Int = 50): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            val (season, year) = currentSeasonYear()
+            remember(
+                page(
+                    AniListApi.query(SEASONAL_Q) {
+                        str("season", season)
+                        int("year", year)
+                        int("perPage", perPage)
+                    }
+                ).map { it.toAnime() }
+            )
+        }
+    }
+
+    /** Same for Top 100 / Popular — let See All fetch its own page instead of relying on the
+     *  home snapshot (which can be empty/transient right after a refresh). */
+    suspend fun popularPage(pageNum: Int, perPage: Int = 50): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            remember(
+                page(AniListApi.query(POPULAR_Q) {
+                    int("page", pageNum); int("perPage", perPage)
+                }).map { it.toAnime() }
+            )
+        }
+    }
+
     /** AniList's Media.season arg requires an enum (WINTER/SPRING/SUMMER/FALL); CURRENT is
      *  invalid there (it only works on AiringSchedule). Derive the real current season. */
     private fun currentSeasonYear(): Pair<String, Int> {
