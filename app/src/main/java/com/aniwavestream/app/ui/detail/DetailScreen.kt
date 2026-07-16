@@ -57,8 +57,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.graphicsLayer
 import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.DemoStreams
 import com.aniwavestream.app.data.model.Character
@@ -168,7 +168,8 @@ fun DetailScreen(
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .graphicsLayer { translationX = -offset.dp.toPx(); scaleX = scale; scaleY = scale }
+                                    .offset(x = offset.dp)
+                                    .scale(scale)
                                     .blur(28.dp)
                             )
                         } else {
