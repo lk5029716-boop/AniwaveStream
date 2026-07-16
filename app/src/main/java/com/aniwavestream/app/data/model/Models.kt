@@ -96,19 +96,19 @@ data class Aired(val string: String? = null)
 /** In-app domain models */
 @Immutable
 data class Anime(
-    val id: Int,
-    val title: String,
-    val synopsis: String,
-    val posterUrl: String?,
-    val bannerUrl: String?,
-    val score: Double?,
-    val episodes: Int?,
-    val year: Int?,
-    val type: String?,
-    val status: String?,
-    val rating: String?,
-    val genres: List<String>,
-    val studios: List<String>
+    val id: Int = 0,
+    val title: String = "",
+    val synopsis: String = "",
+    val posterUrl: String? = null,
+    val bannerUrl: String? = null,
+    val score: Double? = null,
+    val episodes: Int? = null,
+    val year: Int? = null,
+    val type: String? = null,
+    val status: String? = null,
+    val rating: String? = null,
+    val genres: List<String> = emptyList(),
+    val studios: List<String> = emptyList()
 )
 
 fun AnimeDto.toAnime() = Anime(
