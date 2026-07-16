@@ -1046,11 +1046,11 @@ fun AnivaveUpcomingCard(
             Box(
                 Modifier
                     .clip(RoundedCornerShape(4.dp))
-                    .background(Purple.copy(alpha = 0.15f))
-                    .border(1.dp, Purple.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                    .background(Purple)
+                    .border(1.dp, Purple.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
                     .padding(horizontal = 6.dp, vertical = 1.dp)
             ) {
-                Text("UPCOMING", color = Purple, fontFamily = PlexMono, fontSize = 8.sp, fontWeight = FontWeight.Medium)
+                Text("UPCOMING", color = Color.White, fontFamily = PlexMono, fontSize = 8.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(6.dp))
             Text(
@@ -1160,12 +1160,25 @@ fun AnivaveNewReleasesGrid(
                             .height(3.dp)
                             .background(Flame)
                     )
+                    // bottom scrim so the title strip below stays legible on any art
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(28.dp)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f)),
+                                    startY = 0f, endY = 28f
+                                )
+                            )
+                    )
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "${ep.epNum}: ${ep.epTitle}",
                     color = TextPrimary,
-                    fontFamily = FontFamily.Default,
+                    fontFamily = Bricolage,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
                     maxLines = 1,
@@ -1177,9 +1190,10 @@ fun AnivaveNewReleasesGrid(
                 ) {
                     Text(
                         ep.anime.title,
-                        color = TextMuted,
-                        fontFamily = PlexMono,
-                        fontSize = 9.5.sp,
+                        color = TextSecondary,
+                        fontFamily = Bricolage,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
@@ -1301,7 +1315,13 @@ fun ScheduleRow(
         )
         Column(Modifier.weight(1f)) {
             Text(s.title, color = TextPrimary, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(s.status, color = TextMuted, fontFamily = PlexMono, fontSize = 8.5.sp)
+            val statusColor = when {
+                s.status.contains("Hype", true) -> Flame
+                s.status.contains("New", true) -> Cool
+                s.status.contains("Final", true) -> Gold
+                else -> TextSecondary
+            }
+            Text(s.status, color = statusColor, fontFamily = PlexMono, fontSize = 8.5.sp, fontWeight = FontWeight.Medium)
         }
         Text("●", color = Cool, fontSize = 10.sp, fontFamily = PlexMono)
     }

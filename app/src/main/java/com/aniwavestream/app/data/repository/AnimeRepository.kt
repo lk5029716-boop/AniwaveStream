@@ -46,7 +46,9 @@ class AnimeRepository(
     suspend fun seasonal(limit: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
-            remember(api.seasonalNow(limit = limit).data.map { it.toAnime() })
+            // NOTE: Jikan's /seasons/now ignores/zeroes the `limit` query and returns
+            // an empty `data` array when it is present. Omit it so the season populates.
+            remember(api.seasonalNow().data.map { it.toAnime() })
         }
     }
 
