@@ -152,11 +152,11 @@ fun DetailScreen(
             )
 
             Box(Modifier.fillMaxSize().background(Background)) {
-                // Full-screen, light/airy blurred COVER backdrop. The cover image is cropped
-                // to cover the whole screen (ContentScale.Crop) and centered; an ~18dp blur
-                // keeps it soft so the characters stay visible (not a solid gray wash).
+                // Hero backdrop — a FIXED-height band (ends right after the genre names), NOT the
+                // whole screen. Light 6dp blur keeps character faces clearly visible. Below the
+                // hero the normal solid Background shows, so it no longer bleeds down to Play E1.
                 val bgUrl = a.posterUrl ?: a.bannerUrl
-                Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxWidth().height(360.dp)) {
                     if (bgUrl != null) {
                         AsyncImage(
                             model = bgUrl,
@@ -166,18 +166,19 @@ fun DetailScreen(
                                 .fillMaxSize()
                                 .offset(x = offset.dp)
                                 .scale(scale)
-                                .blur(18.dp)
+                                .blur(6.dp)
                         )
                     } else {
-                        AnivaveArt(anime = a, modifier = Modifier.fillMaxSize().blur(18.dp))
+                        AnivaveArt(anime = a, modifier = Modifier.fillMaxSize().blur(6.dp))
                     }
-                    // Fade: transparent at the top (cover shows through) -> solid Background
-                    // toward the bottom so the scrolled-in text remains readable.
+                    // Fade only within the hero: transparent at the very top -> solid Background
+                    // at the bottom edge of the band, so the title block stays readable and the
+                    // rest of the screen is clean solid Background.
                     Box(
                         Modifier.fillMaxSize().background(
                             Brush.verticalGradient(
                                 0.0f to Color.Transparent,
-                                0.45f to Background,
+                                0.55f to Background,
                                 1.0f to Background
                             )
                         )
@@ -198,8 +199,10 @@ fun DetailScreen(
 
                 // Scrolling content (transparent — the backdrop shows through behind it)
                 LazyColumn(Modifier.fillMaxSize()) {
-                    // Push the title block up into the blurred hero zone
-                    item { Spacer(Modifier.height(170.dp)) }
+                    // The hero backdrop occupies the first 360.dp; align the title card to sit
+                    // over it. We use a spacer equal to the hero height minus the card offset.
+                    item { Spacer(Modifier.height(330.dp)) }
+
 
                     item {
                     // Left mini poster card + right-side title block
