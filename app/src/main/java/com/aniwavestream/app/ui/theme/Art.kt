@@ -39,7 +39,7 @@ enum class ArtWash(
     Rose(listOf(Color(0xFFF43F5E), Color(0xFF9F1239), Color(0xFF4C0519), Color(0xFF0F0005)), 0.4f, -0.1f);
 
     companion object {
-        fun forAnime(anime: Anime): ArtWash = entries[anime.id.absoluteValue % entries.size]
+        fun forAnime(anime: Anime): ArtWash = entries[Math.abs(anime.id) % entries.size]
     }
 }
 

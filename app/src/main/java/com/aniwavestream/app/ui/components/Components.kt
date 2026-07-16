@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.Episode
+import com.aniwavestream.app.ui.theme.AnivaveArt
 import com.aniwavestream.app.ui.theme.Background
 import com.aniwavestream.app.ui.theme.Bricolage
 import com.aniwavestream.app.ui.theme.Flame
