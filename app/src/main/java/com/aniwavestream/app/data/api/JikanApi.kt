@@ -2,6 +2,7 @@ package com.aniwavestream.app.data.api
 
 import com.aniwavestream.app.data.model.AnimeDetailResponse
 import com.aniwavestream.app.data.model.AnimeListResponse
+import com.aniwavestream.app.data.model.CharacterListResponse
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType

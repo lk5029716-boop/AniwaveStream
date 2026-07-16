@@ -89,7 +89,7 @@ class HomeViewModel(
                     upcoming = up.getOrDefault(emptyList())
                 )
             }
-            loadSchedule(it.scheduleDay)
+            loadSchedule(_state.value.scheduleDay)
         }
     }
 
