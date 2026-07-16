@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -30,12 +31,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.WindowInsets
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.DayAiring
 import com.aniwavestream.app.data.model.DemoSchedule
@@ -108,10 +112,27 @@ fun SeeAllScreen(
     val safePage = page.coerceIn(0, pageCount - 1)
     val pageItems = filtered.drop(safePage * PAGE_SIZE).take(PAGE_SIZE)
 
+    // Pad to a full multiple of 3 so the last row is never left dangling (no dead space).
+    val fillers = (3 - (pageItems.size % 3)) % 3
+    val displayItems = pageItems + List(fillers) { null }
+
+    // Infinite scroll: auto-append the next page when the user nears the end.
+    val gridState = rememberLazyGridState()
+    LaunchedEffect(gridState, safePage, pageCount) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
+            .collect { lastIndex ->
+                val total = displayItems.size + 2 // + chips + pagination footer
+                if (lastIndex >= total - 4 && safePage < pageCount - 1) {
+                    page = safePage + 1
+                }
+            }
+    }
+
     Scaffold(
         containerColor = Background,
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = {
                     Text(
                         title,
@@ -129,11 +150,12 @@ fun SeeAllScreen(
         }
     ) { padding ->
         LazyVerticalGrid(
+            state = gridState,
             columns = GridCells.Fixed(3),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 12.dp),
+            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -167,13 +189,18 @@ fun SeeAllScreen(
                 }
             }
 
-            // Poster grid (3 fixed columns, cards fill their cell)
-            items(pageItems, key = { it.id }) { anime ->
-                AnimePosterCard(
-                    anime = anime,
-                    onClick = { onAnimeClick(anime) },
-                    modifier = Modifier.fillMaxWidth()
-                )
+            // Poster grid (3 fixed columns, cards fill their cell). Nulls render as empty
+            // placeholder cells so the final row is always complete.
+            items(displayItems, key = { it?.id ?: "filler-${displayItems.indexOf(it)}" }) { anime ->
+                if (anime != null) {
+                    AnimePosterCard(
+                        anime = anime,
+                        onClick = { onAnimeClick(anime) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Spacer(Modifier.height(1.dp))
+                }
             }
 
             // Pagination footer (full-width)
