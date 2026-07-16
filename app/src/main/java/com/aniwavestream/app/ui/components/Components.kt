@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -70,12 +71,14 @@ import com.aniwavestream.app.data.model.Episode
 import com.aniwavestream.app.ui.theme.AnivaveArt
 import com.aniwavestream.app.ui.theme.Background
 import com.aniwavestream.app.ui.theme.Bricolage
+import com.aniwavestream.app.ui.theme.Cool
 import com.aniwavestream.app.ui.theme.Flame
 import com.aniwavestream.app.ui.theme.Gold
 import com.aniwavestream.app.ui.theme.Hairline
 import com.aniwavestream.app.ui.theme.OrangeGlow
 import com.aniwavestream.app.ui.theme.OrangePrimary
 import com.aniwavestream.app.ui.theme.PlexMono
+import com.aniwavestream.app.ui.theme.Purple
 import com.aniwavestream.app.ui.theme.Surface
 import com.aniwavestream.app.ui.theme.SurfaceElevated
 import com.aniwavestream.app.ui.theme.SurfaceRaised
