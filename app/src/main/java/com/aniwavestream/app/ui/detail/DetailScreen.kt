@@ -116,8 +116,6 @@ fun DetailScreen(
         }
     }
 
-    var crash by remember { mutableStateOf<Throwable?>(null) }
-
     LaunchedEffect(animeId) { loadAll() }
 
     when {
