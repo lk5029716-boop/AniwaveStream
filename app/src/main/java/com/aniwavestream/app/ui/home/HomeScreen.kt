@@ -156,7 +156,7 @@ fun HomeScreen(
                         Column(Modifier.fillMaxWidth()) {
                             SectionHeader("New Releases")
                             Spacer(Modifier.height(4.dp))
-                            AnivaveNewReleasesGrid(state.newReleaseEpisodes, onAnimeClick)
+                            AnivaveNewReleasesGrid(state.newReleaseEpisodes, onItem = { onAnimeClick(it.anime) })
                             Spacer(Modifier.height(8.dp))
                         }
                     }

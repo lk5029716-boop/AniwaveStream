@@ -69,6 +69,8 @@ import coil.compose.AsyncImage
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.DayAiring
 import com.aniwavestream.app.data.model.NewReleaseEpisode
+import com.aniwavestream.app.data.model.ScheduleDays
+import com.aniwavestream.app.data.model.SchedulePills
 import com.aniwavestream.app.data.model.Character
 import com.aniwavestream.app.data.model.Episode
 import com.aniwavestream.app.ui.theme.AnivaveArt
@@ -88,7 +90,6 @@ import com.aniwavestream.app.ui.theme.SurfaceRaised
 import com.aniwavestream.app.ui.theme.TextMuted
 import com.aniwavestream.app.ui.theme.TextPrimary
 import com.aniwavestream.app.ui.theme.TextSecondary
-import com.aniwavestream.app.ui.theme.TextFaint
 import com.aniwavestream.app.ui.theme.Void
 
 @Composable
@@ -1256,7 +1257,7 @@ fun AnivaveScheduleCard(
                 ) {
                     Text(
                         name.uppercase(),
-                        color = if (active) Void else TextFaint,
+                        color = if (active) Void else TextMuted,
                         fontFamily = PlexMono,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold
@@ -1273,7 +1274,7 @@ fun AnivaveScheduleCard(
         }
         Spacer(Modifier.height(12.dp))
         if (shows.isEmpty()) {
-            Text("No streams today", color = TextFaint, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(vertical = 12.dp))
+            Text("No streams today", color = TextMuted, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(vertical = 12.dp))
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 shows.take(6).forEach { s ->
