@@ -251,7 +251,7 @@ fun AnimePosterCard(
                         fontFamily = Bricolage,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
-                        textAlign = androidx.compose.ui.text.TextAlign.Center,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(10.dp)
