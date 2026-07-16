@@ -862,48 +862,68 @@ fun AnivaveSectionCard(
     Column(Modifier.fillMaxWidth()) {
         SectionHeader(title)
         Spacer(Modifier.height(4.dp))
-        if (items.isEmpty()) {
-            Text(
-                "Nothing here yet.",
-                color = TextSecondary,
-                fontFamily = PlexMono,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        } else {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(items, key = { it.id }) { anime ->
-                    Column(
+        AnivaveSectionRow(items, onItem)
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+/** Header-less variant (caller renders its own header). */
+@Composable
+fun AnivaveSectionCardNoHeader(
+    items: List<Anime>,
+    onItem: (Anime) -> Unit
+) {
+    Column(Modifier.fillMaxWidth()) {
+        AnivaveSectionRow(items, onItem)
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun AnivaveSectionRow(
+    items: List<Anime>,
+    onItem: (Anime) -> Unit
+) {
+    if (items.isEmpty()) {
+        Text(
+            "Nothing here yet.",
+            color = TextSecondary,
+            fontFamily = PlexMono,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+    } else {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(items, key = { it.id }) { anime ->
+                Column(
+                    Modifier
+                        .width(130.dp)
+                        .clickable { onItem(anime) }
+                ) {
+                    Box(
                         Modifier
-                            .width(130.dp)
-                            .clickable { onItem(anime) }
+                            .fillMaxWidth()
+                            .aspectRatio(2f / 3f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .border(1.dp, Hairline, RoundedCornerShape(14.dp))
                     ) {
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(2f / 3f)
-                                .clip(RoundedCornerShape(14.dp))
-                                .border(1.dp, Hairline, RoundedCornerShape(14.dp))
-                        ) {
-                            AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize())
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            anime.title,
-                            color = TextPrimary,
-                            fontSize = 13.sp,
-                            fontFamily = PlexMono,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize())
                     }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        anime.title,
+                        color = TextPrimary,
+                        fontSize = 13.sp,
+                        fontFamily = PlexMono,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
     }
 }
 

@@ -147,15 +147,33 @@ fun HomeScreen(
                         }
                     }
 
-                    if (state.newReleases.isNotEmpty()) {
-                        item { AnivaveSectionCard("New Releases", state.newReleases, onAnimeClick) }
+                    // New Releases (bottom, top untouched)
+                    item {
+                        Column(Modifier.fillMaxWidth()) {
+                            SectionHeader("New Releases")
+                            Spacer(Modifier.height(4.dp))
+                            if (state.newReleases.isEmpty()) {
+                                Text("No new releases right now.", color = TextSecondary, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp))
+                            } else {
+                                AnivaveSectionCardNoHeader(state.newReleases, onAnimeClick)
+                            }
+                        }
                     }
 
-                    if (state.upcoming.isNotEmpty()) {
-                        item { AnivaveSectionCard("Upcoming Anime", state.upcoming, onAnimeClick) }
+                    // Upcoming Anime (bottom)
+                    item {
+                        Column(Modifier.fillMaxWidth()) {
+                            SectionHeader("Upcoming Anime")
+                            Spacer(Modifier.height(4.dp))
+                            if (state.upcoming.isEmpty()) {
+                                Text("Nothing upcoming.", color = TextSecondary, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp))
+                            } else {
+                                AnivaveSectionCardNoHeader(state.upcoming, onAnimeClick)
+                            }
+                        }
                     }
 
-                    // Weekly Schedule
+                    // Weekly Schedule (bottom)
                     item {
                         Column(Modifier.fillMaxWidth()) {
                             SectionHeader("Weekly Schedule")
@@ -185,11 +203,12 @@ fun HomeScreen(
                                 }
                             }
                             Spacer(Modifier.height(8.dp))
-                            if (state.schedule.isNotEmpty()) {
-                                AnimeRow(state.schedule, onAnimeClick)
+                            if (state.schedule.isEmpty()) {
+                                Text("No airing shows for this day.", color = TextSecondary, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp))
                             } else {
-                                Spacer(Modifier.height(24.dp))
+                                AnimeRow(state.schedule, onAnimeClick)
                             }
+                            Spacer(Modifier.height(8.dp))
                         }
                     }
                 }
