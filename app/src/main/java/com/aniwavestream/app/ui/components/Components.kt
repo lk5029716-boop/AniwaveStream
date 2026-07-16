@@ -43,8 +43,11 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,16 +65,20 @@ import coil.compose.AsyncImage
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.Episode
 import com.aniwavestream.app.ui.theme.Background
+import com.aniwavestream.app.ui.theme.Bricolage
 import com.aniwavestream.app.ui.theme.Flame
 import com.aniwavestream.app.ui.theme.Gold
 import com.aniwavestream.app.ui.theme.Hairline
 import com.aniwavestream.app.ui.theme.OrangeGlow
 import com.aniwavestream.app.ui.theme.OrangePrimary
+import com.aniwavestream.app.ui.theme.PlexMono
+import com.aniwavestream.app.ui.theme.Surface
 import com.aniwavestream.app.ui.theme.SurfaceElevated
 import com.aniwavestream.app.ui.theme.SurfaceRaised
 import com.aniwavestream.app.ui.theme.TextMuted
 import com.aniwavestream.app.ui.theme.TextPrimary
 import com.aniwavestream.app.ui.theme.TextSecondary
+import com.aniwavestream.app.ui.theme.Void
 
 @Composable
 fun LoadingBox(modifier: Modifier = Modifier) {
@@ -190,13 +197,11 @@ fun AnimePosterCard(
                 .aspectRatio(2f / 3f)
                 .clip(RoundedCornerShape(14.dp))
                 .border(1.dp, Hairline, RoundedCornerShape(14.dp))
-                .background(SurfaceRaised)
         ) {
-            AsyncImage(
-                model = anime.posterUrl,
-                contentDescription = anime.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+            AnivaveArt(
+                anime = anime,
+                modifier = Modifier.fillMaxSize(),
+                showImage = true
             )
             if (showScore && anime.score != null) {
                 Row(
@@ -622,5 +627,210 @@ fun SecondaryPillButton(
             Icon(leadingIcon, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(18.dp))
         }
         Text(text, color = TextPrimary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/**
+ * Anivave signature — auto-rotating premium hero slider.
+ * Cycles through [items] every 5s with crossfade, shows indicator dots and a
+ * tagline eyebrow, and a flame "Watch Now" + ghost "Watchlist" action row.
+ */
+@Composable
+fun AnivaveHeroSlider(
+    items: List<Anime>,
+    onPlay: (Anime) -> Unit,
+    onDetails: (Anime) -> Unit,
+    onWatchlist: (Anime) -> Unit
+) {
+    if (items.isEmpty()) return
+    var index by remember { mutableIntStateOf(0) }
+    val safeIndex = index.coerceIn(0, items.lastIndex)
+
+    LaunchedEffect(items) {
+        if (items.size <= 1) return@LaunchedEffect
+        while (true) {
+            kotlinx.coroutines.delay(5000)
+            index = (index + 1) % items.size
+        }
+    }
+
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(440.dp)
+            .border(1.dp, Hairline, RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(24.dp))
+    ) {
+        // Slides
+        items.forEachIndexed { i, anime ->
+            val visible = i == safeIndex
+            androidx.compose.animation.Crossfade(
+                targetState = visible,
+                animationSpec = androidx.compose.animation.core.tween(800),
+                modifier = Modifier.fillMaxSize()
+            ) { show ->
+                if (show) {
+                    Box(Modifier.fillMaxSize()) {
+                        AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize())
+                        // Top scrim for header legibility
+                        Box(
+                            Modifier.fillMaxSize().background(
+                                Brush.verticalGradient(
+                                    colors = listOf(Color(0xFF08080A).copy(alpha = 0.85f), Color.Transparent),
+                                    startY = 0f, endY = 240f
+                                )
+                            )
+                        )
+                        // App header bleeding under status bar
+                        Row(
+                            Modifier
+                                .align(Alignment.TopStart)
+                                .fillMaxWidth()
+                                .padding(horizontal = 18.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "aniva",
+                                color = TextPrimary,
+                                fontFamily = Bricolage,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 22.sp,
+                                letterSpacing = (-0.6).sp
+                            )
+                        }
+                        // Bottom content
+                        Column(
+                            Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(start = 18.dp, end = 18.dp, bottom = 20.dp)
+                        ) {
+                            // Tagline eyebrow
+                            Row(
+                                Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.Black.copy(alpha = 0.4f))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(5.dp)
+                                        .clip(CircleShape)
+                                        .background(Flame)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    anime.studios.firstOrNull() ?: "FEATURED",
+                                    color = Flame,
+                                    fontFamily = PlexMono,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 10.sp,
+                                    letterSpacing = 1.sp
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                anime.title,
+                                color = TextPrimary,
+                                fontFamily = Bricolage,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 26.sp,
+                                lineHeight = 30.sp,
+                                letterSpacing = (-0.5).sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Star, null, tint = Gold, Modifier.size(13.dp))
+                                Spacer(Modifier.width(3.dp))
+                                Text(
+                                    anime.score?.let { "%.1f".format(it) } ?: "—",
+                                    color = Gold,
+                                    fontFamily = PlexMono,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 11.sp
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "${anime.year ?: ""} · ${anime.type ?: ""}",
+                                    color = TextSecondary,
+                                    fontFamily = PlexMono,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                PrimaryPillButton(text = "Watch Now", onClick = { onPlay(anime) }, leadingIcon = Icons.Default.PlayArrow)
+                                SecondaryPillButton(text = "Watchlist", onClick = { onWatchlist(anime) })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Indicator dots
+        Row(
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 18.dp, end = 18.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            items.forEachIndexed { i, _ ->
+                Box(
+                    Modifier
+                        .height(6.dp)
+                        .width(if (i == safeIndex) 18.dp else 6.dp)
+                        .clip(CircleShape)
+                        .background(if (i == safeIndex) Flame else Color.White.copy(alpha = 0.3f))
+                        .clickable { index = i }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Anivave category chip row. Calls [onSelect] with the chosen category (or null
+ * for "all"). Highlights the active chip with a solid flame-on-light look.
+ */
+@Composable
+fun AnivaveChipRow(
+    categories: List<String>,
+    selected: String?,
+    onSelect: (String?) -> Unit
+) {
+    androidx.compose.foundation.lazy.LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            AnivaveChip("All", selected == null) { onSelect(null) }
+        }
+        items(categories, key = { it }) { cat ->
+            AnivaveChip(cat, selected == cat) { onSelect(cat) }
+        }
+    }
+}
+
+@Composable
+private fun AnivaveChip(label: String, active: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.dp, if (active) Flame else Hairline, RoundedCornerShape(10.dp))
+            .background(if (active) Flame else Surface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 7.dp)
+    ) {
+        Text(
+            label,
+            color = if (active) Void else TextSecondary,
+            fontFamily = PlexMono,
+            fontWeight = FontWeight.Medium,
+            fontSize = 12.5.sp
+        )
     }
 }

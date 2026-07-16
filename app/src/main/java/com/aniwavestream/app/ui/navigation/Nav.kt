@@ -160,7 +160,8 @@ fun AniwaveNavHost(
                     viewModel = homeVm,
                     onAnimeClick = { openDetail(it.id) },
                     onPlay = { openPlayer(it.id, 1) },
-                    onContinue = { anime, ep -> openPlayer(anime.id, ep) }
+                    onContinue = { anime, ep -> openPlayer(anime.id, ep) },
+                    library = library
                 )
             }
             composable(Route.Browse.path) {
