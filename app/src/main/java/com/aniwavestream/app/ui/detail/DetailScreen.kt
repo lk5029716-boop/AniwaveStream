@@ -97,9 +97,11 @@ fun DetailScreen(
         error = null
         scope.launch {
             repository.detail(animeId)
-                .onSuccess {
-                    anime = it
-                    episodes = DemoStreams.buildEpisodes(it)
+                .onSuccess { data ->
+                    runCatching {
+                        anime = data
+                        episodes = DemoStreams.buildEpisodes(data)
+                    }.onFailure { crash = it }
                     loading = false
                 }
                 .onFailure { e ->
@@ -113,14 +115,16 @@ fun DetailScreen(
         }
     }
 
+    var crash by remember { mutableStateOf<Throwable?>(null) }
+
     LaunchedEffect(animeId) { loadAll() }
 
-    try {
-        when {
-            loading -> EpisodeListShimmer(modifier = Modifier.fillMaxSize().background(Background))
-            error != null -> ErrorBox(error!!) {
-                loadAll()
-            }
+    when {
+        loading -> EpisodeListShimmer(modifier = Modifier.fillMaxSize().background(Background))
+        error != null -> ErrorBox(error!!) {
+            loadAll()
+        }
+        crash != null -> DetailCrashScreen(crash!!) { loadAll() }
         anime != null -> {
             val a = anime!!
             LazyColumn(
@@ -298,33 +302,34 @@ fun DetailScreen(
                 }
             }
         }
-    } catch (e: Throwable) {
-        // Never let a composition crash white-screen the app. Show the real
-        // exception on a dark surface so it's visible and reportable.
-        Column(
-            Modifier
-                .fillMaxSize()
-                .background(Background)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                "This anime failed to render",
-                color = TextPrimary,
-                fontFamily = Bricolage,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                e.message ?: e.toString(),
-                color = Flame,
-                fontFamily = PlexMono,
-                fontSize = 12.sp
-            )
-            Spacer(Modifier.height(16.dp))
-            SecondaryPillButton(text = "Retry", leadingIcon = Icons.Default.Refresh, onClick = { loadAll() })
-        }
+    }
+}
+
+@Composable
+private fun DetailCrashScreen(error: Throwable, onRetry: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Background)
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            "This anime failed to render",
+            color = TextPrimary,
+            fontFamily = Bricolage,
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            error.message ?: error.toString(),
+            color = Flame,
+            fontFamily = PlexMono,
+            fontSize = 12.sp
+        )
+        Spacer(Modifier.height(16.dp))
+        SecondaryPillButton(text = "Retry", leadingIcon = Icons.Default.Refresh, onClick = onRetry)
     }
 }
 
