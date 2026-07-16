@@ -44,6 +44,9 @@ import com.aniwavestream.app.data.repository.UserLibraryStore
 import com.aniwavestream.app.ui.browse.BrowseScreen
 import com.aniwavestream.app.ui.detail.DetailScreen
 import com.aniwavestream.app.ui.home.HomeScreen
+import com.aniwavestream.app.ui.home.SeeAllKind
+import com.aniwavestream.app.ui.home.SeeAllScreen
+import com.aniwavestream.app.ui.home.WeeklyScheduleScreen
 import com.aniwavestream.app.ui.mylist.MyListScreen
 import com.aniwavestream.app.ui.player.PlayerScreen
 import com.aniwavestream.app.ui.profile.ProfileScreen
@@ -68,6 +71,10 @@ sealed class Route(val path: String) {
     data object Player : Route("player/{id}/{ep}") {
         fun create(id: Int, ep: Int) = "player/$id/$ep"
     }
+    data object SeeAll : Route("seeall/{kind}") {
+        fun create(kind: String) = "seeall/$kind"
+    }
+    data object WeeklySchedule : Route("weekly")
 }
 
 private data class Tab(
@@ -161,7 +168,28 @@ fun AniwaveNavHost(
                     onAnimeClick = { openDetail(it.id) },
                     onPlay = { openPlayer(it.id, 1) },
                     onContinue = { anime, ep -> openPlayer(anime.id, ep) },
+                    onViewAll = { kind -> nav.navigate(Route.SeeAll.create(kind.name)) },
+                    onViewSchedule = { nav.navigate(Route.WeeklySchedule.path) },
                     library = library
+                )
+            }
+            composable(
+                Route.SeeAll.path,
+                arguments = listOf(navArgument("kind") { type = NavType.StringType })
+            ) { entry ->
+                val kindName = entry.arguments?.getString("kind") ?: SeeAllKind.TRENDING.name
+                val kind = SeeAllKind.entries.firstOrNull { it.name == kindName } ?: SeeAllKind.TRENDING
+                SeeAllScreen(
+                    kind = kind,
+                    viewModel = homeVm,
+                    onAnimeClick = { openDetail(it.id) },
+                    onBack = { nav.popBackStack() }
+                )
+            }
+            composable(Route.WeeklySchedule.path) {
+                WeeklyScheduleScreen(
+                    onAnimeClick = { openDetail(it.id) },
+                    onBack = { nav.popBackStack() }
                 )
             }
             composable(Route.Browse.path) {

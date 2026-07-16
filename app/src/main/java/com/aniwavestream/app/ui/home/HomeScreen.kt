@@ -54,6 +54,7 @@ import com.aniwavestream.app.ui.theme.SurfaceRaised
 import com.aniwavestream.app.ui.theme.TextSecondary
 import com.aniwavestream.app.ui.theme.Void
 import com.aniwavestream.app.viewmodel.HomeViewModel
+import com.aniwavestream.app.ui.home.SeeAllKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -65,6 +66,8 @@ fun HomeScreen(
     onAnimeClick: (Anime) -> Unit,
     onPlay: (Anime) -> Unit,
     onContinue: (Anime, Int) -> Unit,
+    onViewAll: (SeeAllKind) -> Unit = { _: SeeAllKind -> },
+    onViewSchedule: () -> Unit = {},
     library: UserLibraryStore
 ) {
     val state by viewModel.state.collectAsState()
@@ -103,17 +106,8 @@ fun HomeScreen(
                         Spacer(Modifier.height(18.dp))
                     }
 
-                    // Category filter chips
-                    item {
-                        val cats = remember(state.trending) {
-                            state.trending.flatMap { it.genres }.distinct().take(6)
-                        }
-                        AnivaveChipRow(categories = cats, selected = category) { category = it }
-                        Spacer(Modifier.height(18.dp))
-                    }
-
                     if (state.continueWatching.isNotEmpty()) {
-                        item { SectionHeader("Continue Watching") }
+                        item { SectionHeader("Continue Watching", onSeeAll = { onViewAll(SeeAllKind.CONTINUE) }) }
                         item {
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
@@ -136,7 +130,7 @@ fun HomeScreen(
                     else state.trending.filter { it.genres.contains(category) }
 
                     if (filtered.isNotEmpty()) {
-                        item { SectionHeader(category ?: "Trending Now") }
+                        item { SectionHeader(category ?: "Trending Now", onSeeAll = { onViewAll(SeeAllKind.TRENDING) }) }
                         item {
                             AnimeRow(filtered, onAnimeClick)
                             Spacer(Modifier.height(8.dp))
@@ -144,7 +138,7 @@ fun HomeScreen(
                     }
 
                     if (state.topRated.isNotEmpty()) {
-                        item { SectionHeader("Top Rated") }
+                        item { SectionHeader("Top Rated", onSeeAll = { onViewAll(SeeAllKind.TOP_RATED) }) }
                         item {
                             AnimeRow(state.topRated, onAnimeClick)
                             Spacer(Modifier.height(8.dp))
@@ -152,7 +146,7 @@ fun HomeScreen(
                     }
 
                     if (state.seasonal.isNotEmpty()) {
-                        item { SectionHeader("This Season") }
+                        item { SectionHeader("This Season", onSeeAll = { onViewAll(SeeAllKind.SEASONAL) }) }
                         item {
                             AnimeRow(state.seasonal, onAnimeClick)
                             Spacer(Modifier.height(8.dp))
@@ -162,7 +156,7 @@ fun HomeScreen(
                     // New Releases (bottom, top untouched) — anivave landscape tiles
                     item {
                         Column(Modifier.fillMaxWidth()) {
-                            SectionHeader("New Releases")
+                            SectionHeader("New Releases", onSeeAll = { onViewAll(SeeAllKind.NEW_RELEASES) })
                             Spacer(Modifier.height(4.dp))
                             AnivaveNewReleasesGrid(state.newReleaseEpisodes, onItem = { onAnimeClick(it.anime) })
                             Spacer(Modifier.height(8.dp))
@@ -172,7 +166,7 @@ fun HomeScreen(
                     // Upcoming Anime (bottom) — anivave portrait cards + bell
                     item {
                         Column(Modifier.fillMaxWidth()) {
-                            SectionHeader("Upcoming Anime")
+                            SectionHeader("Upcoming Anime", onSeeAll = { onViewAll(SeeAllKind.UPCOMING) })
                             Spacer(Modifier.height(4.dp))
                             if (state.upcoming.isEmpty()) {
                                 Text("Nothing upcoming.", color = TextSecondary, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp))
@@ -193,7 +187,7 @@ fun HomeScreen(
                     // Weekly Schedule (bottom) — anivave timed card w/ calendar pills
                     item {
                         Column(Modifier.fillMaxWidth()) {
-                            SectionHeader("Weekly Schedule")
+                            SectionHeader("Weekly Schedule", onSeeAll = onViewSchedule)
                             Spacer(Modifier.height(6.dp))
                             AnivaveScheduleCard(
                                 activeDayIndex = state.scheduleDayIndex,

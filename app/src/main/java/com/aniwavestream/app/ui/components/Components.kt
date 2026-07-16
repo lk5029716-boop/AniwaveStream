@@ -50,6 +50,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -667,14 +669,17 @@ fun AnivaveHeroSlider(
     onWatchlist: (Anime) -> Unit
 ) {
     if (items.isEmpty()) return
-    var index by remember { mutableIntStateOf(0) }
-    val safeIndex = index.coerceIn(0, items.lastIndex)
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { items.size })
 
-    LaunchedEffect(items) {
+    // Auto-rotate: advance the pager every 5s, but pause while the user is dragging.
+    LaunchedEffect(items, pagerState) {
         if (items.size <= 1) return@LaunchedEffect
         while (true) {
             kotlinx.coroutines.delay(5000)
-            index = (index + 1) % items.size
+            if (!pagerState.isScrollInProgress) {
+                val next = (pagerState.currentPage + 1) % items.size
+                pagerState.animateScrollToPage(next)
+            }
         }
     }
 
@@ -685,117 +690,95 @@ fun AnivaveHeroSlider(
             .border(1.dp, Hairline, RoundedCornerShape(24.dp))
             .clip(RoundedCornerShape(24.dp))
     ) {
-        // Slides
-        items.forEachIndexed { i, anime ->
-            val visible = i == safeIndex
-            androidx.compose.animation.Crossfade(
-                targetState = visible,
-                animationSpec = androidx.compose.animation.core.tween(800),
-                modifier = Modifier.fillMaxSize()
-            ) { show ->
-                if (show) {
-                    Box(Modifier.fillMaxSize()) {
-                        AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize())
-                        // Top scrim for header legibility
-                        Box(
-                            Modifier.fillMaxSize().background(
-                                Brush.verticalGradient(
-                                    colors = listOf(Color(0xFF08080A).copy(alpha = 0.85f), Color.Transparent),
-                                    startY = 0f, endY = 240f
-                                )
-                            )
+        // Swipeable pages
+        androidx.compose.foundation.pager.HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            val anime = items[page]
+            Box(Modifier.fillMaxSize()) {
+                AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize())
+                // Top scrim for header legibility
+                Box(
+                    Modifier.fillMaxSize().background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color(0xFF08080A).copy(alpha = 0.85f), Color.Transparent),
+                            startY = 0f, endY = 240f
                         )
-                        // App header bleeding under status bar
-                        Row(
+                    )
+                )
+                // Bottom content
+                Column(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 18.dp, end = 18.dp, bottom = 20.dp)
+                ) {
+                    // Tagline eyebrow
+                    Row(
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.Black.copy(alpha = 0.4f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
                             Modifier
-                                .align(Alignment.TopStart)
-                                .fillMaxWidth()
-                                .padding(horizontal = 18.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "aniva",
-                                color = TextPrimary,
-                                fontFamily = Bricolage,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 22.sp,
-                                letterSpacing = (-0.6).sp
-                            )
-                        }
-                        // Bottom content
-                        Column(
-                            Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(start = 18.dp, end = 18.dp, bottom = 20.dp)
-                        ) {
-                            // Tagline eyebrow
-                            Row(
-                                Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(Color.Black.copy(alpha = 0.4f))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    Modifier
-                                        .size(5.dp)
-                                        .clip(CircleShape)
-                                        .background(Flame)
-                                )
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    anime.studios.firstOrNull() ?: "FEATURED",
-                                    color = Flame,
-                                    fontFamily = PlexMono,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 10.sp,
-                                    letterSpacing = 1.sp
-                                )
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                anime.title,
-                                color = TextPrimary,
-                                fontFamily = Bricolage,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 26.sp,
-                                lineHeight = 30.sp,
-                                letterSpacing = (-0.5).sp,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(13.dp), tint = Gold)
-                                Spacer(Modifier.width(3.dp))
-                                Text(
-                                    anime.score?.let { "%.1f".format(it) } ?: "—",
-                                    color = Gold,
-                                    fontFamily = PlexMono,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 11.sp
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    "${anime.year ?: ""} · ${anime.type ?: ""}",
-                                    color = TextSecondary,
-                                    fontFamily = PlexMono,
-                                    fontSize = 11.sp
-                                )
-                            }
-                            Spacer(Modifier.height(12.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                PrimaryPillButton(text = "Watch Now", onClick = { onPlay(anime) }, leadingIcon = Icons.Default.PlayArrow)
-                                SecondaryPillButton(text = "Watchlist", onClick = { onWatchlist(anime) })
-                            }
-                        }
+                                .size(5.dp)
+                                .clip(CircleShape)
+                                .background(Flame)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            anime.studios.firstOrNull() ?: "FEATURED",
+                            color = Cool,
+                            fontFamily = Bricolage,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        anime.title,
+                        color = TextPrimary,
+                        fontFamily = Bricolage,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 26.sp,
+                        lineHeight = 30.sp,
+                        letterSpacing = (-0.5).sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(13.dp), tint = Gold)
+                        Spacer(Modifier.width(3.dp))
+                        Text(
+                            anime.score?.let { "%.1f".format(it) } ?: "—",
+                            color = Gold,
+                            fontFamily = PlexMono,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 11.sp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "${anime.year ?: ""} · ${anime.type ?: ""}",
+                            color = TextSecondary,
+                            fontFamily = PlexMono,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PrimaryPillButton(text = "Watch Now", onClick = { onPlay(anime) }, leadingIcon = Icons.Default.PlayArrow)
+                        SecondaryPillButton(text = "Watchlist", onClick = { onWatchlist(anime) })
                     }
                 }
             }
         }
 
-        // Indicator dots
+        // Indicator dots (synced to pager, tap to jump)
+        val scope = rememberCoroutineScope()
         Row(
             Modifier
                 .align(Alignment.TopEnd)
@@ -803,13 +786,14 @@ fun AnivaveHeroSlider(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             items.forEachIndexed { i, _ ->
+                val active = i == pagerState.currentPage
                 Box(
                     Modifier
                         .height(6.dp)
-                        .width(if (i == safeIndex) 18.dp else 6.dp)
+                        .width(if (active) 18.dp else 6.dp)
                         .clip(CircleShape)
-                        .background(if (i == safeIndex) Flame else Color.White.copy(alpha = 0.3f))
-                        .clickable { index = i }
+                        .background(if (active) Flame else Color.White.copy(alpha = 0.3f))
+                        .clickable { scope.launch { pagerState.animateScrollToPage(i) } }
                 )
             }
         }
@@ -1228,14 +1212,6 @@ fun AnivaveScheduleCard(
                 "${ScheduleDays[activeDayIndex].replaceFirstChar { it.uppercase() }}'s Schedule",
                 color = TextPrimary, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 15.sp
             )
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(5.dp))
-                    .background(Cool.copy(alpha = 0.15f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Text("JST Broadcast", color = Cool, fontFamily = PlexMono, fontSize = 9.sp)
-            }
         }
         Spacer(Modifier.height(12.dp))
         // Calendar day-pills (inside the card)
@@ -1277,33 +1253,40 @@ fun AnivaveScheduleCard(
             Text("No streams today", color = TextMuted, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(vertical = 12.dp))
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                shows.take(6).forEach { s ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .border(1.dp, Hairline, RoundedCornerShape(10.dp))
-                            .background(SurfaceRaised.copy(alpha = 0.5f))
-                            .clickable { onItem(s) }
-                            .padding(8.dp, 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            s.time,
-                            color = Flame,
-                            fontFamily = PlexMono,
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.width(44.dp)
-                        )
-                        Column(Modifier.weight(1f)) {
-                            Text(s.title, color = TextPrimary, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(s.status, color = TextMuted, fontFamily = PlexMono, fontSize = 8.5.sp)
-                        }
-                        Text("●", color = Cool, fontSize = 10.sp, fontFamily = PlexMono)
-                    }
-                }
+                shows.take(6).forEach { s -> ScheduleRow(s) { onItem(s) } }
             }
         }
+    }
+}
+
+/** A single timed broadcast row used inside the Weekly Schedule card AND the full schedule screen. */
+@Composable
+fun ScheduleRow(
+    s: DayAiring,
+    onItem: () -> Unit = {}
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.dp, Hairline, RoundedCornerShape(10.dp))
+            .background(SurfaceRaised.copy(alpha = 0.5f))
+            .clickable { onItem() }
+            .padding(8.dp, 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            s.time,
+            color = Flame,
+            fontFamily = PlexMono,
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.width(44.dp)
+        )
+        Column(Modifier.weight(1f)) {
+            Text(s.title, color = TextPrimary, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(s.status, color = TextMuted, fontFamily = PlexMono, fontSize = 8.5.sp)
+        }
+        Text("●", color = Cool, fontSize = 10.sp, fontFamily = PlexMono)
     }
 }
