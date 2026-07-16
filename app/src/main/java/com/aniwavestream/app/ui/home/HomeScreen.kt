@@ -129,28 +129,25 @@ fun HomeScreen(
                     val filtered = if (category == null) state.trending
                     else state.trending.filter { it.genres.contains(category) }
 
-                    if (filtered.isNotEmpty()) {
-                        item { SectionHeader(category ?: "Trending Now", onSeeAll = { onViewAll(SeeAllKind.TRENDING) }) }
-                        item {
-                            AnimeRow(filtered, onAnimeClick)
-                            Spacer(Modifier.height(8.dp))
-                        }
+                    item { SectionHeader(category ?: "Trending Now", onSeeAll = { onViewAll(SeeAllKind.TRENDING) }) }
+                    item {
+                        if (filtered.isNotEmpty()) AnimeRow(filtered, onAnimeClick)
+                        else SectionPlaceholder("Trending is loading…")
+                        Spacer(Modifier.height(8.dp))
                     }
 
-                    if (state.topRated.isNotEmpty()) {
-                        item { SectionHeader("Top Rated", onSeeAll = { onViewAll(SeeAllKind.TOP_RATED) }) }
-                        item {
-                            AnimeRow(state.topRated, onAnimeClick)
-                            Spacer(Modifier.height(8.dp))
-                        }
+                    item { SectionHeader("Top Rated", onSeeAll = { onViewAll(SeeAllKind.TOP_RATED) }) }
+                    item {
+                        if (state.topRated.isNotEmpty()) AnimeRow(state.topRated, onAnimeClick)
+                        else SectionPlaceholder("Top Rated is loading…")
+                        Spacer(Modifier.height(8.dp))
                     }
 
-                    if (state.seasonal.isNotEmpty()) {
-                        item { SectionHeader("This Season", onSeeAll = { onViewAll(SeeAllKind.SEASONAL) }) }
-                        item {
-                            AnimeRow(state.seasonal, onAnimeClick)
-                            Spacer(Modifier.height(8.dp))
-                        }
+                    item { SectionHeader("This Season", onSeeAll = { onViewAll(SeeAllKind.SEASONAL) }) }
+                    item {
+                        if (state.seasonal.isNotEmpty()) AnimeRow(state.seasonal, onAnimeClick)
+                        else SectionPlaceholder("This Season is loading…")
+                        Spacer(Modifier.height(8.dp))
                     }
 
                     // New Releases (bottom, top untouched) — anivave landscape tiles
@@ -205,3 +202,16 @@ fun HomeScreen(
 }
 
 private enum class HomeContentState { LOADING, ERROR, CONTENT }
+
+@Composable
+private fun SectionPlaceholder(text: String) {
+    Text(
+        text,
+        color = TextSecondary,
+        fontFamily = PlexMono,
+        fontSize = 12.sp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 18.dp)
+    )
+}

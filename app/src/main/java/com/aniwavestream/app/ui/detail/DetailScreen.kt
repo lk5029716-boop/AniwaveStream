@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -114,11 +115,12 @@ fun DetailScreen(
 
     LaunchedEffect(animeId) { loadAll() }
 
-    when {
-        loading -> EpisodeListShimmer(modifier = Modifier.fillMaxSize().background(Background))
-        error != null -> ErrorBox(error!!) {
-            loadAll()
-        }
+    try {
+        when {
+            loading -> EpisodeListShimmer(modifier = Modifier.fillMaxSize().background(Background))
+            error != null -> ErrorBox(error!!) {
+                loadAll()
+            }
         anime != null -> {
             val a = anime!!
             LazyColumn(
@@ -295,6 +297,33 @@ fun DetailScreen(
                     Spacer(Modifier.height(24.dp))
                 }
             }
+        }
+    } catch (e: Throwable) {
+        // Never let a composition crash white-screen the app. Show the real
+        // exception on a dark surface so it's visible and reportable.
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(Background)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                "This anime failed to render",
+                color = TextPrimary,
+                fontFamily = Bricolage,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                e.message ?: e.toString(),
+                color = Flame,
+                fontFamily = PlexMono,
+                fontSize = 12.sp
+            )
+            Spacer(Modifier.height(16.dp))
+            SecondaryPillButton(text = "Retry", leadingIcon = Icons.Default.Refresh, onClick = { loadAll() })
         }
     }
 }
