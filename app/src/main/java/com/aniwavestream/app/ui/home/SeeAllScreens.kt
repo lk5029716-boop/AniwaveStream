@@ -169,7 +169,11 @@ fun SeeAllScreen(
 
             // Poster grid (3 fixed columns, cards fill their cell)
             items(pageItems, key = { it.id }) { anime ->
-                AnimePosterCard(anime = anime, onClick = { onAnimeClick(anime) })
+                AnimePosterCard(
+                    anime = anime,
+                    onClick = { onAnimeClick(anime) },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             // Pagination footer (full-width)
