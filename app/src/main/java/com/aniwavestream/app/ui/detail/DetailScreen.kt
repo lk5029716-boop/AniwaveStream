@@ -17,8 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -202,13 +200,13 @@ fun DetailScreen(
                             .offset(y = (-48).dp),
                         verticalAlignment = Alignment.Bottom
                     ) {
-                        Card(
-                            shape = RoundedCornerShape(16.dp),
-                            border = androidx.compose.foundation.border.BorderStroke(1.dp, Hairline),
-                            elevation = CardDefaults.cardElevation(8.dp),
-                            modifier = Modifier
+                        Box(
+                            Modifier
                                 .width(100.dp)
                                 .height(150.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .border(1.dp, Hairline, RoundedCornerShape(16.dp))
+                                .background(SurfaceRaised)
                         ) {
                             AsyncImage(
                                 model = a.posterUrl,
