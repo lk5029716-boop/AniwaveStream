@@ -273,6 +273,8 @@ fun DetailScreen(
                             fontSize = 11.sp
                         )
                         Spacer(Modifier.height(20.dp))
+                        CharacterRow(characters = characters)
+                        Spacer(Modifier.height(20.dp))
                         Text("Episodes", color = TextPrimary, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Spacer(Modifier.height(8.dp))
                     }
@@ -288,8 +290,8 @@ fun DetailScreen(
                 item {
                     Spacer(Modifier.height(20.dp))
                     CharacterRow(characters = characters)
-                    Spacer(Modifier.height(12.dp))
-                    AnivaveSectionCard("Related Discoveries", related) { onRelated(it.id) }
+                    Spacer(Modifier.height(8.dp))
+                    AnivaveSectionCard("More Like This", related) { onRelated(it.id) }
                     Spacer(Modifier.height(24.dp))
                 }
             }

@@ -859,38 +859,47 @@ fun AnivaveSectionCard(
     items: List<Anime>,
     onItem: (Anime) -> Unit
 ) {
-    if (items.isEmpty()) return
     Column(Modifier.fillMaxWidth()) {
         SectionHeader(title)
         Spacer(Modifier.height(4.dp))
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(items, key = { it.id }) { anime ->
-                Column(
-                    Modifier
-                        .width(130.dp)
-                        .clickable { onItem(anime) }
-                ) {
-                    Box(
+        if (items.isEmpty()) {
+            Text(
+                "Nothing here yet.",
+                color = TextSecondary,
+                fontFamily = PlexMono,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        } else {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(items, key = { it.id }) { anime ->
+                    Column(
                         Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(2f / 3f)
-                            .clip(RoundedCornerShape(14.dp))
-                            .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+                            .width(130.dp)
+                            .clickable { onItem(anime) }
                     ) {
-                        AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize())
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(2f / 3f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+                        ) {
+                            AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize())
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            anime.title,
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontFamily = PlexMono,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        anime.title,
-                        color = TextPrimary,
-                        fontSize = 13.sp,
-                        fontFamily = PlexMono,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
                 }
             }
         }
@@ -906,56 +915,65 @@ fun CharacterRow(
     characters: List<Character>,
     onItem: (Character) -> Unit = {}
 ) {
-    if (characters.isEmpty()) return
     Column(Modifier.fillMaxWidth()) {
         SectionHeader("Key Characters")
         Spacer(Modifier.height(6.dp))
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(characters, key = { it.id }) { ch ->
-                Column(
-                    Modifier
-                        .width(86.dp)
-                        .clickable { onItem(ch) },
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
+        if (characters.isEmpty()) {
+            Text(
+                "No character data.",
+                color = TextSecondary,
+                fontFamily = PlexMono,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        } else {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(characters, key = { it.id }) { ch ->
+                    Column(
                         Modifier
-                            .size(86.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, Flame.copy(alpha = 0.7f), CircleShape)
+                            .width(86.dp)
+                            .clickable { onItem(ch) },
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        if (ch.imageUrl != null) {
-                            AsyncImage(
-                                model = ch.imageUrl,
-                                contentDescription = ch.name,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            Box(Modifier.fillMaxSize().background(SurfaceRaised))
+                        Box(
+                            Modifier
+                                .size(86.dp)
+                                .clip(CircleShape)
+                                .border(2.dp, Flame.copy(alpha = 0.7f), CircleShape)
+                        ) {
+                            if (ch.imageUrl != null) {
+                                AsyncImage(
+                                    model = ch.imageUrl,
+                                    contentDescription = ch.name,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Box(Modifier.fillMaxSize().background(SurfaceRaised))
+                            }
                         }
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        ch.name,
-                        color = TextPrimary,
-                        fontSize = 12.sp,
-                        fontFamily = PlexMono,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center
-                    )
-                    ch.role?.let {
+                        Spacer(Modifier.height(6.dp))
                         Text(
-                            it,
-                            color = TextSecondary,
-                            fontSize = 10.sp,
+                            ch.name,
+                            color = TextPrimary,
+                            fontSize = 12.sp,
                             fontFamily = PlexMono,
-                            maxLines = 1
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
                         )
+                        ch.role?.let {
+                            Text(
+                                it,
+                                color = TextSecondary,
+                                fontSize = 10.sp,
+                                fontFamily = PlexMono,
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
             }
