@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -1169,6 +1170,7 @@ fun AnivaveScheduleCard(
 /**
  * Anivave "New Releases" — 2-column grid of landscape tiles.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AnivaveNewReleasesGrid(
     items: List<Anime>,
