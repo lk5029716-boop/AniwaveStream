@@ -1193,7 +1193,8 @@ fun AnivaveScheduleCard(
     onDay: (Int) -> Unit,
     shows: List<DayAiring>,
     onItem: (DayAiring) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    maxRows: Int = 6
 ) {
     Column(
         modifier
@@ -1253,7 +1254,7 @@ fun AnivaveScheduleCard(
             Text("No streams today", color = TextMuted, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(vertical = 12.dp))
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                shows.take(6).forEach { s -> ScheduleRow(s) { onItem(s) } }
+                shows.take(maxRows).forEach { s -> ScheduleRow(s) { onItem(s) } }
             }
         }
     }
