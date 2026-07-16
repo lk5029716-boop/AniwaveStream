@@ -31,21 +31,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.BrowseGenres
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.ui.components.ErrorBox
 import com.aniwavestream.app.ui.components.PosterGridShimmer
+import com.aniwavestream.app.ui.theme.AnivaveArt
 import com.aniwavestream.app.ui.theme.Background
-import com.aniwavestream.app.ui.theme.OrangePrimary
-import com.aniwavestream.app.ui.theme.SurfaceElevated
+import com.aniwavestream.app.ui.theme.Bricolage
+import com.aniwavestream.app.ui.theme.Flame
+import com.aniwavestream.app.ui.theme.Hairline
+import com.aniwavestream.app.ui.theme.PlexMono
+import com.aniwavestream.app.ui.theme.SurfaceRaised
 import com.aniwavestream.app.ui.theme.TextPrimary
 import com.aniwavestream.app.ui.theme.TextSecondary
+import com.aniwavestream.app.ui.theme.Void
 
 @Composable
 fun BrowseScreen(
@@ -80,6 +83,8 @@ fun BrowseScreen(
             "Browse",
             style = MaterialTheme.typography.headlineMedium,
             color = TextPrimary,
+            fontFamily = Bricolage,
+            fontWeight = FontWeight.ExtraBold,
             modifier = Modifier.padding(16.dp)
         )
         LazyRow(
@@ -90,20 +95,22 @@ fun BrowseScreen(
                 val selected = genre.id == selectedGenre
                 Box(
                     Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(if (selected) OrangePrimary else SurfaceElevated)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (selected) Flame else SurfaceRaised)
                         .border(
                             1.dp,
-                            if (selected) OrangePrimary else Color.White.copy(0.08f),
-                            RoundedCornerShape(20.dp)
+                            if (selected) Flame else Hairline,
+                            RoundedCornerShape(10.dp)
                         )
                         .clickable { selectedGenre = genre.id }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Text(
                         genre.name,
-                        color = if (selected) Color.White else TextSecondary,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                        color = if (selected) Void else TextSecondary,
+                        fontFamily = PlexMono,
+                        fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                        fontSize = 12.5.sp
                     )
                 }
             }
@@ -123,16 +130,15 @@ fun BrowseScreen(
             ) {
                 items(items, key = { it.id }) { anime ->
                     Column(Modifier.clickable { onAnimeClick(anime) }) {
-                        AsyncImage(
-                            model = anime.posterUrl,
-                            contentDescription = anime.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
+                        Box(
+                            Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(2f / 3f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(SurfaceElevated)
-                        )
+                                .clip(RoundedCornerShape(14.dp))
+                                .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+                        ) {
+                            AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize())
+                        }
                         Spacer(Modifier.height(6.dp))
                         Text(
                             anime.title,
