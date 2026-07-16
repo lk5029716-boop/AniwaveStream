@@ -13,10 +13,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.maxLineSpan
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -160,28 +161,27 @@ fun SeeAllScreen(
                 }
             }
 
-            // 3-column grid of the current page
+            // Scrollable poster grid (fills width like Browse) + pagination footer (no black void)
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                columns = GridCells.Adaptive(120.dp),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(vertical = 8.dp),
+                    .fillMaxSize()
+                    .padding(padding),
+                contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(pageItems, key = { it.id }) { anime ->
                     AnimePosterCard(anime = anime, onClick = { onAnimeClick(anime) })
                 }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    PaginationBar(
+                        page = safePage,
+                        pageCount = pageCount,
+                        onPage = { page = it }
+                    )
+                }
             }
-
-            // Pagination bar
-            PaginationBar(
-                page = safePage,
-                pageCount = pageCount,
-                onPage = { page = it }
-            )
         }
     }
 }
