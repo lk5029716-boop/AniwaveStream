@@ -29,6 +29,7 @@ data class HomeUiState(
     val trending: List<Anime> = emptyList(),
     val topRated: List<Anime> = emptyList(),
     val seasonal: List<Anime> = emptyList(),
+    val top100: List<Anime> = emptyList(),
     val newReleases: List<Anime> = emptyList(),
     val newReleaseEpisodes: List<NewReleaseEpisode> = DemoNewReleaseEpisodes,
     val upcoming: List<Anime> = emptyList(),
@@ -66,11 +67,13 @@ class HomeViewModel(
             val top = async { repository.topRated() }
             val newRel = async { repository.newReleases() }
             val upc = async { repository.upcoming() }
+            val top100res = async { repository.top100() }
             // sequential-ish via throttle inside repo; still fire after first batch
             val t = trending.await()
             val r = top.await()
             val nr = newRel.await()
             val up = upc.await()
+            val t100 = top100res.await()
             val s = repository.seasonal()
 
             val errors = listOf(t, r, s, nr, up).mapNotNull { it.exceptionOrNull()?.message }
@@ -84,6 +87,7 @@ class HomeViewModel(
             val trendingList = t.getOrDefault(emptyList())
             val topList = r.getOrDefault(emptyList())
             val seasonalList = s.getOrDefault(emptyList())
+            val top100List = t100.getOrDefault(emptyList())
             _state.update {
                 it.copy(
                     loading = false,
@@ -92,6 +96,7 @@ class HomeViewModel(
                     trending = trendingList,
                     topRated = topList,
                     seasonal = seasonalList,
+                    top100 = top100List,
                     newReleases = nr.getOrDefault(emptyList()).ifEmpty { DemoNewReleases },
                     newReleaseEpisodes = DemoNewReleaseEpisodes,
                     upcoming = up.getOrDefault(emptyList()).ifEmpty { DemoUpcoming }

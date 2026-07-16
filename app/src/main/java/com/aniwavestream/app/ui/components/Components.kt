@@ -301,6 +301,112 @@ fun AnimeRow(
     }
 }
 
+/**
+ * Ranked poster card for the "TOP 100 ANIME" row — a deliberately DIFFERENT
+ * design from [AnimePosterCard]: a large rank number (1-100) is overlaid on the
+ * top-left of the poster, and the anime name is printed ON the card (bottom
+ * gradient strip) instead of below it. Rank tier tint: 1-3 gold, 4-10 flame,
+ * 11+ muted accent.
+ */
+@Composable
+fun AnimeRankedCard(
+    anime: Anime,
+    rank: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier.width(120.dp)
+) {
+    val rankColor = when {
+        rank <= 3 -> Gold
+        rank <= 10 -> Flame
+        else -> TextPrimary
+    }
+    Column(modifier.clickable(onClick = onClick)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(2f / 3f)
+                .clip(RoundedCornerShape(14.dp))
+                .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+        ) {
+            AnivaveArt(anime = anime, modifier = Modifier.fillMaxSize(), showImage = true)
+            // Rank badge (big number, top-left)
+            Box(
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.Black.copy(alpha = 0.72f))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    "#$rank",
+                    color = rankColor,
+                    fontFamily = Bricolage,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 20.sp,
+                    letterSpacing = (-1).sp
+                )
+            }
+            if (anime.score != null) {
+                Row(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Star, contentDescription = null, tint = Gold, modifier = Modifier.size(12.dp))
+                    Spacer(Modifier.width(2.dp))
+                    Text(String.format("%.1f", anime.score), color = TextPrimary, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            // Name ON the card (bottom gradient strip) — distinct from AnimePosterCard
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.92f)),
+                            startY = 0f, endY = 90f
+                        )
+                    )
+                    .padding(start = 10.dp, end = 10.dp, bottom = 9.dp, top = 22.dp)
+            ) {
+                Text(
+                    anime.title,
+                    color = TextPrimary,
+                    fontFamily = Bricolage,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    lineHeight = 15.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AnimeRankedRow(
+    items: List<Anime>,
+    onAnimeClick: (Anime) -> Unit,
+    contentPadding: PaddingValues = PaddingValues(start = 16.dp, end = 32.dp)
+) {
+    LazyRow(
+        contentPadding = contentPadding,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(items, key = { it.id }) { anime ->
+            val rank = items.indexOf(anime) + 1
+            AnimeRankedCard(anime = anime, rank = rank, onClick = { onAnimeClick(anime) })
+        }
+    }
+}
+
 @Composable
 fun ContinueCard(
     anime: Anime,

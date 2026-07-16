@@ -53,6 +53,7 @@ import com.aniwavestream.app.data.model.DayAiring
 import com.aniwavestream.app.data.model.DemoSchedule
 import com.aniwavestream.app.data.model.ScheduleDays
 import com.aniwavestream.app.ui.components.AnimePosterCard
+import com.aniwavestream.app.ui.components.AnimeRankedCard
 import com.aniwavestream.app.ui.components.AnivaveScheduleCard
 import com.aniwavestream.app.ui.theme.Background
 import com.aniwavestream.app.ui.theme.Bricolage
@@ -62,7 +63,7 @@ import com.aniwavestream.app.ui.theme.TextPrimary
 import com.aniwavestream.app.ui.theme.TextMuted
 import com.aniwavestream.app.viewmodel.HomeViewModel
 
-enum class SeeAllKind { TRENDING, TOP_RATED, SEASONAL, NEW_RELEASES, UPCOMING, CONTINUE }
+enum class SeeAllKind { TRENDING, TOP_RATED, SEASONAL, NEW_RELEASES, UPCOMING, CONTINUE, TOP_100 }
 
 private const val PAGE_SIZE = 50
 
@@ -92,14 +93,16 @@ fun SeeAllScreen(
         SeeAllKind.UPCOMING -> state.upcoming
         SeeAllKind.CONTINUE -> state.continueWatching.map { it.anime }
         SeeAllKind.NEW_RELEASES -> state.newReleaseEpisodes.map { it.anime }
+        SeeAllKind.TOP_100 -> state.top100
     }
     val title = when (kind) {
         SeeAllKind.TRENDING -> "Trending Now"
-        SeeAllKind.TOP_RATED -> "Top Rated"
-        SeeAllKind.SEASONAL -> "This Season"
+        SeeAllKind.TOP_RATED -> "All Time Popular"
+        SeeAllKind.SEASONAL -> "Popular This Season"
         SeeAllKind.UPCOMING -> "Upcoming Anime"
         SeeAllKind.CONTINUE -> "Continue Watching"
         SeeAllKind.NEW_RELEASES -> "New Releases"
+        SeeAllKind.TOP_100 -> "Top 100 Anime"
     }
 
     var typeFilter by remember { mutableStateOf("All") }
@@ -195,11 +198,21 @@ fun SeeAllScreen(
             // placeholder cells so the final row is always complete.
             items(displayItems, key = { it?.id ?: "filler-${displayItems.indexOf(it)}" }) { anime ->
                 if (anime != null) {
-                    AnimePosterCard(
-                        anime = anime,
-                        onClick = { onAnimeClick(anime) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (kind == SeeAllKind.TOP_100) {
+                        val rank = all.indexOf(anime) + 1
+                        AnimeRankedCard(
+                            anime = anime,
+                            rank = rank,
+                            onClick = { onAnimeClick(anime) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        AnimePosterCard(
+                            anime = anime,
+                            onClick = { onAnimeClick(anime) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 } else {
                     Spacer(Modifier.height(1.dp))
                 }

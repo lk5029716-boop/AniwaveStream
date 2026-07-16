@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.repository.UserLibraryStore
 import com.aniwavestream.app.ui.components.AnimeRow
+import com.aniwavestream.app.ui.components.AnimeRankedRow
 import com.aniwavestream.app.ui.components.AnivaveSectionCard
 import com.aniwavestream.app.ui.components.AnivaveSectionCardNoHeader
 import com.aniwavestream.app.ui.components.AnivaveScheduleCard
@@ -136,17 +137,28 @@ fun HomeScreen(
                         Spacer(Modifier.height(8.dp))
                     }
 
-                    item { SectionHeader("Top Rated", onSeeAll = { onViewAll(SeeAllKind.TOP_RATED) }) }
+                    item { SectionHeader("ALL TIME POPULAR", onSeeAll = { onViewAll(SeeAllKind.TOP_RATED) }) }
                     item {
                         if (state.topRated.isNotEmpty()) AnimeRow(state.topRated, onAnimeClick)
-                        else SectionPlaceholder("Top Rated is loading…")
+                        else SectionPlaceholder("All Time Popular is loading…")
                         Spacer(Modifier.height(8.dp))
                     }
 
-                    item { SectionHeader("This Season", onSeeAll = { onViewAll(SeeAllKind.SEASONAL) }) }
+                    // TOP 100 ANIME — ranked cards (number 1-100 on the card, name on the card)
+                    item { SectionHeader("TOP 100 ANIME", onSeeAll = { onViewAll(SeeAllKind.TOP_100) }) }
+                    item {
+                        if (state.top100.isNotEmpty()) {
+                            AnimeRankedRow(items = state.top100.take(20), onAnimeClick = onAnimeClick)
+                        } else {
+                            SectionPlaceholder("Top 100 is loading…")
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    item { SectionHeader("POPULAR THIS SEASON", onSeeAll = { onViewAll(SeeAllKind.SEASONAL) }) }
                     item {
                         if (state.seasonal.isNotEmpty()) AnimeRow(state.seasonal, onAnimeClick)
-                        else SectionPlaceholder("This Season is loading…")
+                        else SectionPlaceholder("Popular This Season is loading…")
                         Spacer(Modifier.height(8.dp))
                     }
 

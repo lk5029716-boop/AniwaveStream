@@ -36,6 +36,19 @@ class AnimeRepository(
         }
     }
 
+    suspend fun top100(): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            // Jikan's top/anime rejects limit > 25 (returns empty data), so paginate
+            // four pages of 25 to assemble a true top-100 list.
+            val out = mutableListOf<Anime>()
+            for (page in 1..4) {
+                throttle()
+                out += api.topAnime(page = page, limit = 25).data.map { it.toAnime() }
+            }
+            remember(out)
+        }
+    }
+
     suspend fun trending(limit: Int = 20): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
