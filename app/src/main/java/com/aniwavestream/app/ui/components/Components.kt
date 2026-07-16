@@ -62,9 +62,13 @@ import coil.compose.AsyncImage
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.Episode
 import com.aniwavestream.app.ui.theme.Background
+import com.aniwavestream.app.ui.theme.Flame
+import com.aniwavestream.app.ui.theme.Gold
+import com.aniwavestream.app.ui.theme.Hairline
 import com.aniwavestream.app.ui.theme.OrangeGlow
 import com.aniwavestream.app.ui.theme.OrangePrimary
 import com.aniwavestream.app.ui.theme.SurfaceElevated
+import com.aniwavestream.app.ui.theme.SurfaceRaised
 import com.aniwavestream.app.ui.theme.TextMuted
 import com.aniwavestream.app.ui.theme.TextPrimary
 import com.aniwavestream.app.ui.theme.TextSecondary
@@ -184,8 +188,9 @@ fun AnimePosterCard(
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
-                .clip(RoundedCornerShape(10.dp))
-                .background(SurfaceElevated)
+                .clip(RoundedCornerShape(14.dp))
+                .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+                .background(SurfaceRaised)
         ) {
             AsyncImage(
                 model = anime.posterUrl,
@@ -206,7 +211,7 @@ fun AnimePosterCard(
                     Icon(
                         Icons.Default.Star,
                         contentDescription = null,
-                        tint = OrangePrimary,
+                        tint = Gold,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(Modifier.width(2.dp))
@@ -272,8 +277,9 @@ fun ContinueCard(
     Row(
         Modifier
             .width(280.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(SurfaceElevated)
+            .clip(RoundedCornerShape(14.dp))
+            .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+            .background(SurfaceRaised)
             .clickable(onClick = onClick)
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -281,7 +287,7 @@ fun ContinueCard(
         Box(
             Modifier
                 .size(width = 72.dp, height = 100.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .background(Background)
         ) {
             AsyncImage(
@@ -343,7 +349,8 @@ fun EpisodeCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(14.dp))
-            .background(SurfaceElevated)
+            .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+            .background(SurfaceRaised)
             .clickable(onClick = onClick)
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically

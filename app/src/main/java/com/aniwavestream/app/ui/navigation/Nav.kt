@@ -1,6 +1,13 @@
 package com.aniwavestream.app.ui.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aniwavestream.app.ui.theme.Hairline
+import com.aniwavestream.app.ui.theme.Void
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
@@ -101,7 +108,13 @@ fun AniwaveNavHost(
         containerColor = Background,
         bottomBar = {
             if (showBar) {
-                NavigationBar(containerColor = SurfaceDark) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(Void.copy(alpha = 0.92f))
+                        .border(1.dp, Hairline, RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp))
+                ) {
+                NavigationBar(containerColor = Color.Transparent) {
                     tabs.forEach { tab ->
                         val selected = current == tab.route
                         NavigationBarItem(
@@ -131,6 +144,7 @@ fun AniwaveNavHost(
                             )
                         )
                     }
+                }
                 }
             }
         }
