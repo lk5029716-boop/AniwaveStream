@@ -66,6 +66,7 @@ import com.aniwavestream.app.ui.theme.Flame
 import com.aniwavestream.app.ui.theme.Gold
 import com.aniwavestream.app.ui.theme.Hairline
 import com.aniwavestream.app.ui.theme.PlexMono
+import com.aniwavestream.app.ui.theme.Purple
 import com.aniwavestream.app.ui.theme.SurfaceRaised
 import com.aniwavestream.app.ui.theme.TextMuted
 import com.aniwavestream.app.ui.theme.TextPrimary
@@ -89,6 +90,7 @@ fun DetailScreen(
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<Throwable?>(null) }
     var crash by remember { mutableStateOf<Throwable?>(null) }
+    var synopsisExpanded by remember { mutableStateOf(false) }
     val myList by library.myListIds.collectAsState(initial = emptySet())
     val inList = animeId in myList
     val scope = rememberCoroutineScope()
@@ -267,11 +269,24 @@ fun DetailScreen(
                         Spacer(Modifier.height(20.dp))
                         Text("Synopsis", color = TextPrimary, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Spacer(Modifier.height(8.dp))
+                        val full = a.synopsis.ifBlank { "No synopsis available." }
+                        val display = if (synopsisExpanded || full.length <= 160) full else full.take(160).trimEnd() + "…"
                         Text(
-                            a.synopsis.ifBlank { "No synopsis available." },
+                            display,
                             color = TextSecondary,
                             style = MaterialTheme.typography.bodyLarge
                         )
+                        if (full.length > 160) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                if (synopsisExpanded) "Less" else "More",
+                                color = Purple,
+                                fontFamily = Bricolage,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 13.sp,
+                                modifier = Modifier.clickable { synopsisExpanded = !synopsisExpanded }
+                            )
+                        }
                         Spacer(Modifier.height(8.dp))
                         Text(
                             "Demo notice: episode streams are public sample videos, not licensed anime.",
