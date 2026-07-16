@@ -47,13 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.scale
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import com.aniwavestream.app.data.model.Anime
@@ -138,51 +132,21 @@ fun DetailScreen(
         crash != null -> DetailCrashScreen(crash!!) { loadAll() }
         anime != null -> {
             val a = anime!!
-            // Slow, subtle drift for the airy backdrop
-            val trans = rememberInfiniteTransition(label = "bg")
-            val offset by trans.animateFloat(
-                initialValue = 0f,
-                targetValue = 40f,
-                animationSpec = infiniteRepeatable(tween(9000), RepeatMode.Reverse),
-            )
-            val scale by trans.animateFloat(
-                initialValue = 1.2f,
-                targetValue = 1.35f,
-                animationSpec = infiniteRepeatable(tween(12000), RepeatMode.Reverse),
-            )
-
             Box(Modifier.fillMaxSize().background(Background)) {
-                // Hero backdrop — a FIXED-height band (ends right after the genre names), NOT the
-                // whole screen. Light 6dp blur keeps character faces clearly visible. Below the
-                // hero the normal solid Background shows, so it no longer bleeds down to Play E1.
+                // Immersive full-bleed image at the very top (behind the status bar).
+                // Capped to screen height so it can NEVER paint below the hero/genre row.
                 val bgUrl = a.posterUrl ?: a.bannerUrl
-                Box(Modifier.fillMaxWidth().height(360.dp).clipToBounds()) {
-                    if (bgUrl != null) {
-                        AsyncImage(
-                            model = bgUrl,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .offset(x = offset.dp)
-                                .scale(scale)
-                                .blur(6.dp)
-                                .clipToBounds()
-                        )
-                    } else {
-                        AnivaveArt(anime = a, modifier = Modifier.fillMaxSize().blur(6.dp).clipToBounds())
-                    }
-                    // Fade only within the hero: transparent at the very top -> solid Background
-                    // at the bottom edge of the band, so the title block stays readable and the
-                    // rest of the screen is clean solid Background.
-                    Box(
-                        Modifier.fillMaxSize().background(
-                            Brush.verticalGradient(
-                                0.0f to Color.Transparent,
-                                0.55f to Background,
-                                1.0f to Background
-                            )
-                        )
+                if (bgUrl != null) {
+                    AsyncImage(
+                        model = bgUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(580.dp)
+                            .blur(6.dp)
+                            .clipToBounds(),
+                        alpha = 0.35f
                     )
                 }
 
@@ -198,103 +162,128 @@ fun DetailScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                 }
 
-                // Scrolling content (transparent — the backdrop shows through behind it)
+                // Scrolling content
                 LazyColumn(Modifier.fillMaxSize()) {
-                    // The hero backdrop occupies the first 360.dp; align the title card to sit
-                    // over it. We use a spacer equal to the hero height minus the card offset.
-                    item { Spacer(Modifier.height(330.dp)) }
-
-
+                    // ---- HERO (contains the blurred backdrop + title card + genre row) ----
+                    // This whole item is the "blurry background" zone: it starts at the top and
+                    // ends right after the genre names. Nothing below it is ever blurred.
                     item {
-                    // Left mini poster card + right-side title block
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .offset(y = (-48).dp),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        Box(
-                            Modifier
-                                .width(100.dp)
-                                .height(150.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .border(1.dp, Hairline, RoundedCornerShape(16.dp))
-                                .background(SurfaceRaised)
-                        ) {
-                            AsyncImage(
-                                model = a.posterUrl,
-                                contentDescription = a.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
+                        // Local blurred backdrop confined to the hero item only.
+                        Box(Modifier.fillMaxWidth()) {
+                            if (bgUrl != null) {
+                                AsyncImage(
+                                    model = bgUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(320.dp)
+                                        .blur(6.dp)
+                                        .clipToBounds()
+                                )
+                            } else {
+                                AnivaveArt(anime = a, modifier = Modifier.fillMaxWidth().height(320.dp).blur(6.dp).clipToBounds())
+                            }
+                            // Fade the hero's blurred image into solid Background at its bottom edge.
+                            Box(
+                                Modifier.fillMaxWidth().height(320.dp).background(
+                                    Brush.verticalGradient(
+                                        0.0f to Color.Transparent,
+                                        0.6f to Background,
+                                        1.0f to Background
+                                    )
+                                )
                             )
                         }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            // Studio / source eyebrow
-                            Row(
+
+                        // Left mini poster card + right-side title block (sits over the hero)
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 24.dp)
+                                .offset(y = (-48).dp),
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Box(
                                 Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(Color.Black.copy(alpha = 0.4f))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .width(100.dp)
+                                    .height(150.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .border(1.dp, Hairline, RoundedCornerShape(16.dp))
+                                    .background(SurfaceRaised)
                             ) {
-                                Box(
-                                    Modifier.size(5.dp).clip(CircleShape).background(Flame)
-                                )
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    a.studios.firstOrNull() ?: "FEATURED",
-                                    color = Flame,
-                                    fontFamily = PlexMono,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 10.sp,
-                                    letterSpacing = 1.sp
+                                AsyncImage(
+                                    model = a.posterUrl,
+                                    contentDescription = a.title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             }
-                            Spacer(Modifier.height(10.dp))
-                            Text(
-                                a.title,
-                                color = TextPrimary,
-                                fontFamily = Bricolage,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 24.sp,
-                                lineHeight = 28.sp,
-                                letterSpacing = (-0.5).sp
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (a.score != null) {
-                                    Icon(Icons.Default.Star, contentDescription = null, tint = Gold, modifier = Modifier.size(13.dp))
-                                    Spacer(Modifier.width(3.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                // Studio / source eyebrow
+                                Row(
+                                    Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color.Black.copy(alpha = 0.4f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        Modifier.size(5.dp).clip(CircleShape).background(Flame)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
                                     Text(
-                                        "%.1f".format(a.score),
-                                        color = Gold,
+                                        a.studios.firstOrNull() ?: "FEATURED",
+                                        color = Flame,
                                         fontFamily = PlexMono,
                                         fontWeight = FontWeight.Medium,
+                                        fontSize = 10.sp,
+                                        letterSpacing = 1.sp
+                                    )
+                                }
+                                Spacer(Modifier.height(10.dp))
+                                Text(
+                                    a.title,
+                                    color = TextPrimary,
+                                    fontFamily = Bricolage,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 24.sp,
+                                    lineHeight = 28.sp,
+                                    letterSpacing = (-0.5).sp
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (a.score != null) {
+                                        Icon(Icons.Default.Star, contentDescription = null, tint = Gold, modifier = Modifier.size(13.dp))
+                                        Spacer(Modifier.width(3.dp))
+                                        Text(
+                                            "%.1f".format(a.score),
+                                            color = Gold,
+                                            fontFamily = PlexMono,
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 11.sp
+                                        )
+                                        Spacer(Modifier.width(10.dp))
+                                    }
+                                    Text(
+                                        listOfNotNull(a.year?.toString(), a.type, a.status).joinToString(" · "),
+                                        color = TextSecondary,
+                                        fontFamily = PlexMono,
                                         fontSize = 11.sp
                                     )
-                                    Spacer(Modifier.width(10.dp))
                                 }
-                                Text(
-                                    listOfNotNull(a.year?.toString(), a.type, a.status).joinToString(" · "),
-                                    color = TextSecondary,
-                                    fontFamily = PlexMono,
-                                    fontSize = 11.sp
-                                )
                             }
                         }
-                    }
-                }
-                item {
-                    Column(Modifier.padding(horizontal = 16.dp)) {
-                        Spacer(Modifier.height(8.dp))
-                        // Genre pills
-                        androidx.compose.foundation.lazy.LazyRow(
-                            contentPadding = PaddingValues(0.dp),
+
+                        // Genre pills — THIS is the bottom edge of the blurry background.
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(a.genres) { g ->
+                            a.genres.forEach { g ->
                                 Box(
                                     Modifier
                                         .clip(RoundedCornerShape(10.dp))
@@ -306,78 +295,83 @@ fun DetailScreen(
                                 }
                             }
                         }
-                        Spacer(Modifier.height(16.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            PrimaryPillButton(text = "Play E1", leadingIcon = Icons.Default.PlayArrow, onClick = { onPlay(1) })
-                            SecondaryPillButton(
-                                text = if (inList) "In List" else "My List",
-                                leadingIcon = if (inList) Icons.Default.Check else Icons.Default.Add,
-                                onClick = { scope.launch { library.toggleMyList(animeId) } }
-                            )
-                        }
-                        Spacer(Modifier.height(20.dp))
-                        // Info grid (Source / Status / Episodes)
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .border(1.dp, Hairline, RoundedCornerShape(14.dp))
-                                .background(SurfaceRaised)
-                                .padding(14.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            InfoCell("SOURCE", "AniList")
-                            InfoCell("STATUS", a.status ?: "—")
-                            InfoCell("EPISODES", (a.episodes ?: 0).toString())
-                        }
-                        Spacer(Modifier.height(20.dp))
-                        Text("Synopsis", color = TextPrimary, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Spacer(Modifier.height(8.dp))
-                        val full = a.synopsis.ifBlank { "No synopsis available." }
-                        val display = if (synopsisExpanded || full.length <= 160) full else full.take(160).trimEnd() + "…"
-                        Text(
-                            display,
-                            color = TextSecondary,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        if (full.length > 160) {
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                if (synopsisExpanded) "Less" else "More",
-                                color = Purple,
-                                fontFamily = Bricolage,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 13.sp,
-                                modifier = Modifier.clickable { synopsisExpanded = !synopsisExpanded }
-                            )
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Demo notice: episode streams are public sample videos, not licensed anime.",
-                            color = TextMuted,
-                            fontFamily = PlexMono,
-                            fontSize = 11.sp
-                        )
-                        Spacer(Modifier.height(20.dp))
-                        CharacterRow(characters = characters)
-                        Spacer(Modifier.height(20.dp))
-                        Text("Episodes", color = TextPrimary, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Spacer(Modifier.height(8.dp))
                     }
-                }
-                items(episodes, key = { it.number }) { ep ->
-                    EpisodeCard(
-                        episode = ep,
-                        thumbnailUrl = a.bannerUrl ?: a.posterUrl,
-                        watchProgress = 0f,
-                        onClick = { onPlay(ep.number) }
-                    )
-                }
-                item {
-                    Spacer(Modifier.height(20.dp))
-                    AnivaveSectionCard("More Like This", related) { onRelated(it.id) }
-                    Spacer(Modifier.height(24.dp))
-                }
+
+                    // ---- EVERYTHING BELOW IS ON SOLID BACKGROUND (never blurred) ----
+                    item {
+                        Column(Modifier.padding(horizontal = 16.dp)) {
+                            Spacer(Modifier.height(16.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                PrimaryPillButton(text = "Play E1", leadingIcon = Icons.Default.PlayArrow, onClick = { onPlay(1) })
+                                SecondaryPillButton(
+                                    text = if (inList) "In List" else "My List",
+                                    leadingIcon = if (inList) Icons.Default.Check else Icons.Default.Add,
+                                    onClick = { scope.launch { library.toggleMyList(animeId) } }
+                                )
+                            }
+                            Spacer(Modifier.height(20.dp))
+                            // Info grid (Source / Status / Episodes)
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+                                    .background(SurfaceRaised)
+                                    .padding(14.dp),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                InfoCell("SOURCE", "AniList")
+                                InfoCell("STATUS", a.status ?: "—")
+                                InfoCell("EPISODES", (a.episodes ?: 0).toString())
+                            }
+                            Spacer(Modifier.height(20.dp))
+                            Text("Synopsis", color = TextPrimary, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Spacer(Modifier.height(8.dp))
+                            val full = a.synopsis.ifBlank { "No synopsis available." }
+                            val display = if (synopsisExpanded || full.length <= 160) full else full.take(160).trimEnd() + "…"
+                            Text(
+                                display,
+                                color = TextSecondary,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            if (full.length > 160) {
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    if (synopsisExpanded) "Less" else "More",
+                                    color = Purple,
+                                    fontFamily = Bricolage,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.clickable { synopsisExpanded = !synopsisExpanded }
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Demo notice: episode streams are public sample videos, not licensed anime.",
+                                color = TextMuted,
+                                fontFamily = PlexMono,
+                                fontSize = 11.sp
+                            )
+                            Spacer(Modifier.height(20.dp))
+                            CharacterRow(characters = characters)
+                            Spacer(Modifier.height(20.dp))
+                            Text("Episodes", color = TextPrimary, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+                    items(episodes, key = { it.number }) { ep ->
+                        EpisodeCard(
+                            episode = ep,
+                            thumbnailUrl = a.bannerUrl ?: a.posterUrl,
+                            watchProgress = 0f,
+                            onClick = { onPlay(ep.number) }
+                        )
+                    }
+                    item {
+                        Spacer(Modifier.height(20.dp))
+                        AnivaveSectionCard("More Like This", related) { onRelated(it.id) }
+                        Spacer(Modifier.height(24.dp))
+                    }
                 }
             }
         }
