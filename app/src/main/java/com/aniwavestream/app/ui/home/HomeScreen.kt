@@ -151,6 +151,14 @@ fun HomeScreen(
                         }
                     }
 
+                    if (state.seasonal.isNotEmpty()) {
+                        item { SectionHeader("This Season") }
+                        item {
+                            AnimeRow(state.seasonal, onAnimeClick)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+
                     // New Releases (bottom, top untouched) — anivave landscape tiles
                     item {
                         Column(Modifier.fillMaxWidth()) {
