@@ -151,12 +151,12 @@ fun HomeScreen(
                         }
                     }
 
-                    // New Releases (bottom, top untouched) — anivave 2-col grid
+                    // New Releases (bottom, top untouched) — anivave landscape tiles
                     item {
                         Column(Modifier.fillMaxWidth()) {
                             SectionHeader("New Releases")
                             Spacer(Modifier.height(4.dp))
-                            AnivaveNewReleasesGrid(state.newReleases, onAnimeClick)
+                            AnivaveNewReleasesGrid(state.newReleaseEpisodes, onAnimeClick)
                             Spacer(Modifier.height(8.dp))
                         }
                     }
@@ -182,14 +182,14 @@ fun HomeScreen(
                         }
                     }
 
-                    // Weekly Schedule (bottom) — anivave timed card
+                    // Weekly Schedule (bottom) — anivave timed card w/ calendar pills
                     item {
                         Column(Modifier.fillMaxWidth()) {
                             SectionHeader("Weekly Schedule")
                             Spacer(Modifier.height(6.dp))
-                            val activeDayLabel = "Today's Schedule — " + state.scheduleDay.replaceFirstChar { it.uppercase() }
                             AnivaveScheduleCard(
-                                dayLabel = activeDayLabel,
+                                activeDayIndex = state.scheduleDayIndex,
+                                onDay = { viewModel.setScheduleDayIndex(it) },
                                 shows = state.schedule,
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )

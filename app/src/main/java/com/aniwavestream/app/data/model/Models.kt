@@ -272,3 +272,27 @@ val DemoUpcoming: List<Anime> = listOf(
     Anime(92006, "Oshi no Ko Season 2", "https://cdn.myanimelist.net/images/anime/1492/138007.jpg", score = 8.2, type = "TV", episodes = 13, status = "Upcoming", year = 2025, genres = listOf("Drama", "Mystery"))
 )
 
+/** A new-release episode tile (landscape) for the Home "New Releases" row. */
+data class NewReleaseEpisode(
+    val anime: Anime,
+    val epNum: String,     // "Ep 3"
+    val epTitle: String,   // "Across the Pass"
+    val timeAgo: String,   // "2 hrs ago"
+    val duration: String,  // "24m"
+    val progress: Float    // 0..1 watched fraction
+)
+
+/** Demo New Releases — mirrors anivave.html NEW_EPISODES_RELEASED. */
+val DemoNewReleaseEpisodes: List<NewReleaseEpisode> = listOf(
+    NewReleaseEpisode(DemoNewReleases[0], "Ep 3", "Across the Pass", "2 hrs ago", "24m", 0.30f),
+    NewReleaseEpisode(DemoNewReleases[2], "Ep 17", "Thunderclap", "Yesterday", "25m", 0f),
+    NewReleaseEpisode(DemoNewReleases[3], "Ep 5", "Gun Devil Fragment", "2 days ago", "24m", 0.95f),
+    NewReleaseEpisode(DemoNewReleases[4], "Ep 8", "Hashira Training", "3 days ago", "24m", 0.60f),
+    NewReleaseEpisode(DemoNewReleases[5], "Ep 11", "Mission Complete", "4 days ago", "24m", 0.45f)
+)
+
+/** Calendar pills for the Weekly Schedule card (day name + date number), per anivave.html. */
+val SchedulePills = listOf(
+    "Mon" to 13, "Tue" to 14, "Wed" to 15, "Thu" to 16, "Fri" to 17, "Sat" to 18, "Sun" to 19
+)
+

@@ -7,8 +7,10 @@ import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.ContinueItem
 import com.aniwavestream.app.data.model.DayAiring
 import com.aniwavestream.app.data.model.DemoNewReleases
+import com.aniwavestream.app.data.model.DemoNewReleaseEpisodes
 import com.aniwavestream.app.data.model.DemoSchedule
 import com.aniwavestream.app.data.model.DemoUpcoming
+import com.aniwavestream.app.data.model.NewReleaseEpisode
 import com.aniwavestream.app.data.model.ScheduleDays
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.repository.UserLibraryStore
@@ -28,8 +30,9 @@ data class HomeUiState(
     val topRated: List<Anime> = emptyList(),
     val seasonal: List<Anime> = emptyList(),
     val newReleases: List<Anime> = emptyList(),
+    val newReleaseEpisodes: List<NewReleaseEpisode> = DemoNewReleaseEpisodes,
     val upcoming: List<Anime> = emptyList(),
-    val scheduleDay: String = ScheduleDays[0],
+    val scheduleDayIndex: Int = 3,
     val schedule: List<DayAiring> = emptyList(),
     val continueWatching: List<ContinueItem> = emptyList()
 )
@@ -90,21 +93,23 @@ class HomeViewModel(
                     topRated = topList,
                     seasonal = seasonalList,
                     newReleases = nr.getOrDefault(emptyList()).ifEmpty { DemoNewReleases },
+                    newReleaseEpisodes = DemoNewReleaseEpisodes,
                     upcoming = up.getOrDefault(emptyList()).ifEmpty { DemoUpcoming }
                 )
             }
-            loadSchedule(_state.value.scheduleDay)
+            loadSchedule(_state.value.scheduleDayIndex)
         }
     }
 
-    fun setScheduleDay(day: String) {
-        _state.update { it.copy(scheduleDay = day) }
-        loadSchedule(day)
+    fun setScheduleDayIndex(index: Int) {
+        _state.update { it.copy(scheduleDayIndex = index) }
+        loadSchedule(index)
     }
 
-    private fun loadSchedule(day: String) {
+    private fun loadSchedule(index: Int) {
         // anivave's weekly schedule is a timed (JST) list; we use the demo slate
         // (the live Jikan /schedules endpoint doesn't return per-show air times).
+        val day = ScheduleDays.getOrElse(index) { ScheduleDays[0] }
         _state.update { it.copy(schedule = DemoSchedule[day] ?: emptyList()) }
     }
 
