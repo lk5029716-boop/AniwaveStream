@@ -88,6 +88,7 @@ fun DetailScreen(
     var related by remember { mutableStateOf<List<Anime>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<Throwable?>(null) }
+    var crash by remember { mutableStateOf<Throwable?>(null) }
     val myList by library.myListIds.collectAsState(initial = emptySet())
     val inList = animeId in myList
     val scope = rememberCoroutineScope()
