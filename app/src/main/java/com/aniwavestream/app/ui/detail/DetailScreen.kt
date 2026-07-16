@@ -138,62 +138,72 @@ fun DetailScreen(
         crash != null -> DetailCrashScreen(crash!!) { loadAll() }
         anime != null -> {
             val a = anime!!
-            LazyColumn(
-                Modifier
-                    .fillMaxSize()
-                    .background(Background)
-            ) {
-                item {
-                    // Animated, slowly drifting, blurred anime backdrop (stays behind content).
-                    // Uses the AniList banner so the characters remain visible through a
-                    // light (16.dp) blur — not a full blur.
-                    val bgUrl = a.bannerUrl ?: a.posterUrl
-                    val trans = rememberInfiniteTransition(label = "bg")
-                    val offset by trans.animateFloat(
-                        initialValue = 0f,
-                        targetValue = 40f,
-                        animationSpec = infiniteRepeatable(tween(9000), RepeatMode.Reverse)
-                    )
-                    val scale by trans.animateFloat(
-                        initialValue = 1.15f,
-                        targetValue = 1.3f,
-                        animationSpec = infiniteRepeatable(tween(12000), RepeatMode.Reverse)
-                    )
-                    Box(Modifier.fillMaxWidth().height(360.dp)) {
-                        if (bgUrl != null) {
-                            AsyncImage(
-                                model = bgUrl,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .offset(x = offset.dp)
-                                    .scale(scale)
-                                    .blur(16.dp)
-                            )
-                        } else {
-                            AnivaveArt(anime = a, modifier = Modifier.fillMaxSize().blur(16.dp))
-                        }
-                        Box(
-                            Modifier.fillMaxSize().background(
-                                Brush.verticalGradient(
-                                    listOf(Color.Transparent, Background),
-                                    startY = 40f, endY = 460f
+            // Slow, subtle drift for the airy backdrop
+            val trans = rememberInfiniteTransition(label = "bg")
+            val offset by trans.animateFloat(
+                initialValue = 0f,
+                targetValue = 40f,
+                animationSpec = infiniteRepeatable(tween(9000), RepeatMode.Reverse),
+            )
+            val scale by trans.animateFloat(
+                initialValue = 1.2f,
+                targetValue = 1.35f,
+                animationSpec = infiniteRepeatable(tween(12000), RepeatMode.Reverse),
+            )
+
+            Box(Modifier.fillMaxSize().background(Background)) {
+                // Full-screen, light/airy blurred COVER backdrop. The cover image is cropped
+                // to cover the whole screen (ContentScale.Crop) and centered; an ~18dp blur
+                // keeps it soft so the characters stay visible (not a solid gray wash).
+                val bgUrl = a.posterUrl ?: a.bannerUrl
+                Box(Modifier.fillMaxSize()) {
+                    if (bgUrl != null) {
+                        AsyncImage(
+                            model = bgUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .offset(x = offset.dp)
+                                .scale(scale)
+                                .blur(18.dp)
+                        )
+                    } else {
+                        AnivaveArt(anime = a, modifier = Modifier.fillMaxSize().blur(18.dp))
+                    }
+                    // Fade: transparent at the top (cover shows through) -> solid Background
+                    // toward the bottom so the scrolled-in text remains readable.
+                    Box(
+                        Modifier.fillMaxSize().background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    0.0f to Color.Transparent,
+                                    0.45f to Background,
+                                    1.0f to Background
                                 )
                             )
                         )
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .padding(12.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(0.45f))
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                        }
-                    }
+                    )
                 }
-                item {
+
+                // Back button (overlay, top-left)
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(0.45f))
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                }
+
+                // Scrolling content (transparent — the backdrop shows through behind it)
+                LazyColumn(Modifier.fillMaxSize()) {
+                    // Push the title block up into the blurred hero zone
+                    item { Spacer(Modifier.height(170.dp)) }
+
+                    item {
                     // Left mini poster card + right-side title block
                     Row(
                         Modifier
@@ -365,6 +375,7 @@ fun DetailScreen(
                     Spacer(Modifier.height(20.dp))
                     AnivaveSectionCard("More Like This", related) { onRelated(it.id) }
                     Spacer(Modifier.height(24.dp))
+                }
                 }
             }
         }
