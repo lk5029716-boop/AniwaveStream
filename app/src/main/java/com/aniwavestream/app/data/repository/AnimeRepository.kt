@@ -3,6 +3,7 @@ package com.aniwavestream.app.data.repository
 import com.aniwavestream.app.data.api.JikanApi
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.Character
+import com.aniwavestream.app.data.model.CharacterEdgeDto
 import com.aniwavestream.app.data.model.toAnime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
