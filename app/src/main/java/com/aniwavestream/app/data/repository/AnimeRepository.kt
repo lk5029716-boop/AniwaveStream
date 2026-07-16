@@ -161,69 +161,69 @@ private const val MEDIA_FIELDS = """
 """
 
 private const val TRENDING_Q = """
-query(${'${'$'}'}perPage: Int) {
-  Page(page: 1, perPage: ${'$'}perPage) {
+query(${'$'}perPage: Int) {
+  Page(page: 1, perPage: $perPage) {
     media(sort: TRENDING_DESC, type: ANIME) { ${MEDIA_FIELDS} }
   }
 }"""
 
 private const val POPULAR_Q = """
-query(${'${'$'}'}perPage: Int) {
-  Page(page: 1, perPage: ${'$'}perPage) {
+query(${'$'}perPage: Int) {
+  Page(page: 1, perPage: $perPage) {
     media(sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
   }
 }"""
 
 private const val TOP100_Q = """
-query(${'${'$'}'}page: Int, ${'$'}perPage: Int) {
-  Page(page: ${'$'}page, perPage: ${'$'}perPage) {
+query(${'$'}page: Int, $perPage: Int) {
+  Page(page: $page, perPage: $perPage) {
     media(sort: SCORE_DESC, type: ANIME) { ${MEDIA_FIELDS} }
   }
 }"""
 
 private const val SEASONAL_Q = """
-query(${'${'$'}'}perPage: Int) {
-  Page(page: 1, perPage: ${'$'}perPage) {
+query(${'$'}perPage: Int) {
+  Page(page: 1, perPage: $perPage) {
     media(season: CURRENT, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
   }
 }"""
 
 private const val RELEASING_Q = """
-query(${'${'$'}'}perPage: Int) {
-  Page(page: 1, perPage: ${'$'}perPage) {
+query(${'$'}perPage: Int) {
+  Page(page: 1, perPage: $perPage) {
     media(status: RELEASING, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
   }
 }"""
 
 private const val UPCOMING_Q = """
-query(${'${'$'}'}perPage: Int) {
-  Page(page: 1, perPage: ${'$'}perPage) {
+query(${'$'}perPage: Int) {
+  Page(page: 1, perPage: $perPage) {
     media(status: NOT_YET_RELEASED, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
   }
 }"""
 
 private const val SEARCH_Q = """
-query(${'${'$'}'}q: String, ${'$'}perPage: Int) {
-  Page(page: 1, perPage: ${'$'}perPage) {
-    media(search: ${'$'}q, sort: SEARCH_MATCH, type: ANIME) { ${MEDIA_FIELDS} }
+query(${'$'}q: String, $perPage: Int) {
+  Page(page: 1, perPage: $perPage) {
+    media(search: $q, sort: SEARCH_MATCH, type: ANIME) { ${MEDIA_FIELDS} }
   }
 }"""
 
 private const val GENRE_Q = """
-query(${'${'$'}'}genre: String, ${'$'}perPage: Int) {
-  Page(page: 1, perPage: ${'$'}perPage) {
-    media(genre: ${'$'}genre, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
+query(${'$'}genre: String, $perPage: Int) {
+  Page(page: 1, perPage: $perPage) {
+    media(genre: $genre, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
   }
 }"""
 
 private const val DETAIL_Q = """
-query(${'${'$'}'}id: Int) {
-  Media(id: ${'$'}id, type: ANIME) { ${MEDIA_FIELDS} }
+query(${'$'}id: Int) {
+  Media(id: $id, type: ANIME) { ${MEDIA_FIELDS} }
 }"""
 
 private const val CHAR_Q = """
-query(${'${'$'}'}id: Int) {
-  Media(id: ${'$'}id, type: ANIME) {
+query(${'$'}id: Int) {
+  Media(id: $id, type: ANIME) {
     characters(sort: ROLE, perPage: 12) {
       edges { role node { id name { full } image { large } } }
     }
@@ -231,8 +231,8 @@ query(${'${'$'}'}id: Int) {
 }"""
 
 private const val REC_Q = """
-query(${'${'$'}'}id: Int) {
-  Media(id: ${'$'}id, type: ANIME) {
+query(${'$'}id: Int) {
+  Media(id: $id, type: ANIME) {
     recommendations(sort: RATING_DESC, perPage: 12) {
       nodes { media { ${MEDIA_FIELDS} } }
     }
