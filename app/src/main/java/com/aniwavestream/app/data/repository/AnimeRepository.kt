@@ -9,6 +9,7 @@ import com.aniwavestream.app.data.model.toAnime
 import com.aniwavestream.app.data.model.toCharacter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
@@ -16,14 +17,32 @@ class AnimeRepository(
     private val json: Json = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true }
 ) {
     private val cache = mutableMapOf<Int, Anime>()
-    private var lastCallMs = 0L
+    private val requestTimes = ArrayDeque<Long>()
+    private val rateMutex = Mutex()
+
+    // AniList unauthenticated limit is 90 req/min. Serialize ALL requests through one
+    // mutex + a rolling 60s window so parallel calls can't burst past the limit and get
+    // HTTP 429 (which previously dropped characters/recommendations on detail screens).
+    private val MIN_GAP_MS = 750L
+    private val WINDOW_MS = 60_000L
+    private val MAX_PER_WINDOW = 85
 
     private suspend fun throttle() {
-        // AniList rate limit is 90 req/min (no auth); keep a small gap between calls.
-        val now = System.currentTimeMillis()
-        val wait = 350 - (now - lastCallMs)
-        if (wait > 0) delay(wait)
-        lastCallMs = System.currentTimeMillis()
+        rateMutex.withLock {
+            val now = System.currentTimeMillis()
+            while (requestTimes.isNotEmpty() && now - requestTimes.first() > WINDOW_MS) {
+                requestTimes.removeFirst()
+            }
+            if (requestTimes.size >= MAX_PER_WINDOW) {
+                val wait = (requestTimes.first() + WINDOW_MS - now).coerceAtLeast(0L) + 50L
+                delay(wait)
+            } else {
+                val since = requestTimes.lastOrNull()?.let { now - it } ?: Long.MAX_VALUE
+                val wait = (MIN_GAP_MS - since).coerceAtLeast(0L)
+                if (wait > 0) delay(wait)
+            }
+            requestTimes.addLast(System.currentTimeMillis())
+        }
     }
 
     private fun remember(list: List<Anime>): List<Anime> {
