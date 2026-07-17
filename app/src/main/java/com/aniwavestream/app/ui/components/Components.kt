@@ -1140,7 +1140,7 @@ fun AnivaveUpcomingCard(
             anime = anime,
             modifier = Modifier
                 .matchParentSize()
-                .blur(14.dp)
+                .blur(2.dp)
                 .clipToBounds()
         )
         // Scrim so the card text + portrait stay readable over the art.
