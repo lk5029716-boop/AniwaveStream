@@ -10,6 +10,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import android.util.Log
+import com.aniwavestream.app.data.repository.RateLimitException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -53,8 +55,9 @@ object AniListApi {
             .url(BASE)
             .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody("application/json".toMediaType()))
             .build()
-        // Retry transient failures (HTTP 429 rate-limit / 5xx) with backoff so a single
-        // throttled response never silently drops data (e.g. the characters query).
+        // 429 = rate limited: do NOT hammer the already-exhausted budget. Throw RateLimitException
+        // immediately so the repository returns Result.failure(RateLimitException) and the UI can
+        // show a "slow down / retry" state. 5xx are transient server errors, so retry those.
         val maxAttempts = 4
         var attempt = 0
         while (true) {
@@ -63,13 +66,15 @@ object AniListApi {
                 val text = resp.body?.string().orEmpty()
                 val code = resp.code
                 if (resp.isSuccessful) return text
-                val retryable = code == 429 || code >= 500
-                if (!retryable || attempt >= maxAttempts) {
-                    throw RuntimeException("AniList HTTP $code: ${text.take(200)}")
+                Log.w("AniListApi", "HTTP $code on attempt $attempt: ${text.take(200)}")
+                if (code == 429) throw RateLimitException("AniList HTTP 429 (attempt $attempt)")
+                if (code >= 500 && attempt < maxAttempts) {
+                    val retryAfter = resp.headers["Retry-After"]?.toLongOrNull()
+                    val waitMs = ((retryAfter ?: 0L) * 1000L).coerceAtLeast(attempt * 1000L).coerceAtMost(8000L)
+                    Thread.sleep(waitMs)
+                    return@use
                 }
-                val retryAfter = resp.headers["Retry-After"]?.toLongOrNull()
-                val waitMs = ((retryAfter ?: 0L) * 1000L).coerceAtLeast(attempt * 1000L).coerceAtMost(8000L)
-                Thread.sleep(waitMs)
+                throw RuntimeException("AniList HTTP $code: ${text.take(200)}")
             }
         }
     }
