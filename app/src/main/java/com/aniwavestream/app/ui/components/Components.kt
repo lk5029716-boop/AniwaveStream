@@ -1136,21 +1136,20 @@ fun AnivaveUpcomingCard(
             .width(280.dp)
             .clip(RoundedCornerShape(18.dp))
     ) {
-        AnivaveArt(
-            anime = anime,
+        AsyncImage(
+            model = anime.bannerUrl ?: anime.posterUrl,
+            contentDescription = anime.title,
+            contentScale = ContentScale.Crop,
             modifier = Modifier
                 .matchParentSize()
                 .blur(2.dp)
                 .clipToBounds()
         )
-        // Scrim so the card text + portrait stay readable over the art.
-        Box(Modifier.matchParentSize().background(Brush.horizontalGradient(0.0f to Background.copy(alpha = 0.45f), 0.55f to Background.copy(alpha = 0.7f), 1.0f to Background.copy(alpha = 0.85f))))
         Row(
             modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
                 .border(1.dp, Hairline, RoundedCornerShape(18.dp))
-                .background(SurfaceRaised.copy(alpha = 0.35f))
                 .clickable { onItem() }
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
