@@ -54,8 +54,7 @@ class AniwaveApp : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader =
         ImageLoader.Builder(this)
             .crossfade(220)
-            .placeholder(android.graphics.ColorDrawable(android.graphics.Color.TRANSPARENT))
-            .error(android.graphics.ColorDrawable(android.graphics.Color.TRANSPARENT))
+            .placeholder(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCache {
