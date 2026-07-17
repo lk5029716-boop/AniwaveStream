@@ -3,8 +3,6 @@ package com.aniwavestream.app
 import android.app.Application
 import android.content.Intent
 import android.os.Looper
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.ColorPainter
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -56,8 +54,8 @@ class AniwaveApp : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader =
         ImageLoader.Builder(this)
             .crossfade(220)
-            .placeholder(ColorPainter(Color.Transparent))
-            .error(ColorPainter(Color.Transparent))
+            .placeholder(android.graphics.ColorDrawable(android.graphics.Color.TRANSPARENT))
+            .error(android.graphics.ColorDrawable(android.graphics.Color.TRANSPARENT))
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCache {
