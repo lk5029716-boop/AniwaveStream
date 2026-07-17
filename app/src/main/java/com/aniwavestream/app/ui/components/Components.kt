@@ -74,6 +74,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -1142,39 +1144,16 @@ fun AnivaveUpcomingCard(
 ) {
     var alertOn by remember { mutableStateOf(false) }
     // Blurred art backdrop behind the card (home "Upcoming Anime" row only).
-    // Light blur + slow cinematic Ken-Burns pan/zoom so a long cover drifts and reveals every part.
-    val kb = rememberInfiniteTransition()
-    val kbScale by kb.animateFloat(
-        initialValue = 1.05f, targetValue = 1.18f,
-        animationSpec = infiniteRepeatable(tween(18000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
-    )
-    val kbX by kb.animateFloat(
-        initialValue = -18f, targetValue = 18f,
-        animationSpec = infiniteRepeatable(tween(22000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
-    )
-    val kbY by kb.animateFloat(
-        initialValue = -14f, targetValue = 14f,
-        animationSpec = infiniteRepeatable(tween(20000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
-    )
+    // Cinematic Ken-Burns: minimal zoom + full vertical sweep computed from the real image.
     Box(
         modifier
             .width(280.dp)
             .clip(RoundedCornerShape(18.dp))
     ) {
-        AsyncImage(
+        KenBurnsImage(
             model = anime.bannerUrl ?: anime.posterUrl,
-            contentDescription = anime.title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .matchParentSize()
-                .graphicsLayer {
-                    scaleX = kbScale
-                    scaleY = kbScale
-                    translationX = kbX.dp.toPx()
-                    translationY = kbY.dp.toPx()
-                }
-                .blur(0.6.dp)
-                .clipToBounds()
+            blurDp = 0.6.dp,
+            modifier = Modifier.matchParentSize()
         )
         Row(
             modifier
@@ -1484,4 +1463,58 @@ fun ScheduleRow(
         }
         Text("●", color = Cool, fontSize = 10.sp, fontFamily = PlexMono)
     }
+}
+
+/**
+ * Cinematic Ken-Burns backdrop image.
+ * - Zoom ~1.05x (minimal crop, fills width).
+ * - Vertical pan range computed from the ACTUAL image height vs the card, so it always
+ *   sweeps face -> full body/scene regardless of poster dimensions (fixes "stuck on face").
+ * - Subtle horizontal pan +/-10dp.
+ * - All eased (FastOutSlowInEasing) with slightly staggered durations so the loop never
+ *   feels repetitive.
+ */
+@Composable
+fun KenBurnsImage(
+    model: Any?,
+    blurDp: Dp,
+    modifier: Modifier = Modifier
+) {
+    var cardSize by remember { mutableStateOf(IntSize.Zero) }
+    var imgSize by remember { mutableStateOf(IntSize.Zero) }
+    val kb = rememberInfiniteTransition()
+    // Zoom: subtle 1.05 -> 1.10 on its own clock.
+    val scale by kb.animateFloat(
+        initialValue = 1.05f, targetValue = 1.10f,
+        animationSpec = infiniteRepeatable(tween(21000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
+    )
+    // Horizontal pan: subtle +/-10dp on its own clock.
+    val panX by kb.animateFloat(
+        initialValue = -10f, targetValue = 10f,
+        animationSpec = infiniteRepeatable(tween(20000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
+    )
+    // Vertical pan: full range from actual image, computed each frame.
+    val ratio = if (imgSize.width > 0) imgSize.height.toFloat() / imgSize.width else (2f / 3f)
+    val scaledH = cardSize.width * ratio * scale
+    val spanPx = ((scaledH - cardSize.height) / 2f).coerceAtLeast(0f)
+    val panY by kb.animateFloat(
+        initialValue = -spanPx, targetValue = spanPx,
+        animationSpec = infiniteRepeatable(tween(23000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
+    )
+    AsyncImage(
+        model = model,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        onSuccess = { imgSize = it.result.painter.intrinsicSize.toIntSize() },
+        modifier = modifier
+            .onSizeChanged { cardSize = it }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                translationX = panX.dp.toPx()
+                translationY = panY
+            }
+            .blur(blurDp)
+            .clipToBounds()
+    )
 }

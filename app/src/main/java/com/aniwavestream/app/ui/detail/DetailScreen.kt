@@ -76,6 +76,7 @@ import com.aniwavestream.app.ui.components.EpisodeListShimmer
 import com.aniwavestream.app.ui.components.ErrorBox
 import com.aniwavestream.app.ui.components.PrimaryPillButton
 import com.aniwavestream.app.ui.components.SecondaryPillButton
+import com.aniwavestream.app.ui.components.KenBurnsImage
 import com.aniwavestream.app.ui.theme.AnivaveArt
 import com.aniwavestream.app.ui.theme.Background
 import com.aniwavestream.app.ui.theme.Bricolage
@@ -446,42 +447,16 @@ private fun HeroBackdrop(images: List<String>, fallback: Anime, modifier: Modifi
     Box(modifier.clipToBounds()) {
         list.forEachIndexed { i, url ->
             val visible = i == index
-            val kb = rememberInfiniteTransition()
-            // Zoom: 1.05 -> 1.18 (pre-motion floor), eased, 18s.
-            val scale by kb.animateFloat(
-                initialValue = 1.05f, targetValue = 1.18f,
-                animationSpec = infiniteRepeatable(tween(18000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
-            )
-            // Pan X: +/-18dp, eased, 22s.
-            val panX by kb.animateFloat(
-                initialValue = -18f, targetValue = 18f,
-                animationSpec = infiniteRepeatable(tween(22000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
-            )
-            // Pan Y: +/-14dp, eased, 20s.
-            val panY by kb.animateFloat(
-                initialValue = -14f, targetValue = 14f,
-                animationSpec = infiniteRepeatable(tween(20000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
-            )
             Crossfade(
                 targetState = visible,
                 animationSpec = tween(900),
                 modifier = Modifier.fillMaxSize()
             ) { show ->
                 if (show) {
-                    AsyncImage(
+                    KenBurnsImage(
                         model = url,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                                translationX = panX.dp.toPx()
-                                translationY = panY.dp.toPx()
-                            }
-                            .blur(2.dp)
-                            .clipToBounds()
+                        blurDp = 2.dp,
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             }

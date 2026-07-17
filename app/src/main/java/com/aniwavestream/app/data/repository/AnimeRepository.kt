@@ -165,6 +165,28 @@ class AnimeRepository(
         }
     }
 
+    /** A-Z browse: fetch a title-sorted page and client-filter by the first letter.
+     *  Pass "0-9" to match titles starting with a digit. */
+    suspend fun byLetter(letter: String): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            val all = page(AniListApi.query(BY_LETTER_Q, { int("perPage", 100) })).map { it.toAnime() }
+            val filtered = all.filter { a ->
+                val t = a.title.firstOrNull()?.toString().orEmpty()
+                if (letter == "0-9") t.any { it.isDigit() } else t.equals(letter, ignoreCase = true)
+            }
+            remember(filtered)
+        }
+    }
+
+    /** Release year browse: AniList media filtered by seasonYear. */
+    suspend fun byYear(year: Int): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            remember(page(AniListApi.query(BY_YEAR_Q, { int("year", year); int("perPage", 24) })).map { it.toAnime() })
+        }
+    }
+
     // ---- Detail + extras ----
 
     suspend fun detail(id: Int): Result<Anime> = withContext(Dispatchers.IO) {
@@ -272,6 +294,22 @@ query(${'$'}genre: String, ${'$'}perPage: Int) {
     media(genre: ${'$'}genre, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
   }
 }"""
+
+private const val BY_LETTER_Q = """\
+query(${'$'}perPage: Int) {
+  Page(page: 1, perPage: ${'$'}perPage) {
+    media(sort: TITLE_ROMAJI, type: ANIME) { ${MEDIA_FIELDS} }
+  }
+}
+"""
+
+private const val BY_YEAR_Q = """\
+query(${'$'}year: Int, ${'$'}perPage: Int) {
+  Page(page: 1, perPage: ${'$'}perPage) {
+    media(seasonYear: ${'$'}year, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
+  }
+}
+"""
 
 private const val DETAIL_Q = """
 query(${'$'}id: Int) {

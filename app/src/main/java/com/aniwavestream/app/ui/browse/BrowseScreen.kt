@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -51,28 +53,39 @@ import com.aniwavestream.app.ui.theme.TextPrimary
 import com.aniwavestream.app.ui.theme.TextSecondary
 import com.aniwavestream.app.ui.theme.Void
 
+/** Top-level filter modes for the Browse hub. */
+private enum class BrowseMode { GENRE, LETTER, YEAR }
+
+private val ALPHA_KEYS = listOf("All", "0-9") + ('A'..'Z').map { it.toString() }
+private val YEARS = (2006..2026).toList().reversed()
+
 @Composable
 fun BrowseScreen(
     repository: AnimeRepository,
     onAnimeClick: (Anime) -> Unit
 ) {
+    // Filter selection state.
+    var mode by remember { mutableStateOf(BrowseMode.GENRE) }
     var selectedGenre by remember { mutableIntStateOf(BrowseGenres.first().id) }
+    var selectedLetter by remember { mutableStateOf<String?>(null) }
+    var selectedYear by remember { mutableStateOf<Int?>(null) }
+
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var items by remember { mutableStateOf<List<Anime>>(emptyList()) }
 
-    LaunchedEffect(selectedGenre) {
+    // (Re)load whenever the active filter changes.
+    LaunchedEffect(mode, selectedGenre, selectedLetter, selectedYear) {
         loading = true
         error = null
-        repository.byGenre(selectedGenre)
-            .onSuccess {
-                items = it
-                loading = false
-            }
-            .onFailure {
-                error = it.message ?: "Failed to load genre"
-                loading = false
-            }
+        val result = when (mode) {
+            BrowseMode.GENRE -> repository.byGenre(selectedGenre)
+            BrowseMode.LETTER -> repository.byLetter(selectedLetter ?: "All")
+            BrowseMode.YEAR -> repository.byYear(selectedYear ?: 2026)
+        }
+        result
+            .onSuccess { items = it; loading = false }
+            .onFailure { error = it.message ?: "Failed to load"; loading = false }
     }
 
     Column(
@@ -88,42 +101,65 @@ fun BrowseScreen(
             fontWeight = FontWeight.ExtraBold,
             modifier = Modifier.padding(16.dp)
         )
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+
+        // Top filter boxes: All Anime | Genre | Release Year (same line, consistent design).
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(BrowseGenres, key = { it.id }) { genre ->
-                val selected = genre.id == selectedGenre
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (selected) Flame else SurfaceRaised)
-                        .border(
-                            1.dp,
-                            if (selected) Flame else Hairline,
-                            RoundedCornerShape(10.dp)
-                        )
-                        .clickable { selectedGenre = genre.id }
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        genre.name,
-                        color = if (selected) Void else TextSecondary,
-                        fontFamily = PlexMono,
-                        fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                        fontSize = 12.5.sp
-                    )
+            BrowseTopBox(
+                label = "All Anime",
+                selected = mode == BrowseMode.LETTER,
+                onClick = {
+                    mode = BrowseMode.LETTER
+                    if (selectedLetter == null) selectedLetter = "All"
                 }
-            }
+            )
+            BrowseTopBox(
+                label = "Genre",
+                selected = mode == BrowseMode.GENRE,
+                onClick = { mode = BrowseMode.GENRE }
+            )
+            BrowseTopBox(
+                label = "Release Year",
+                selected = mode == BrowseMode.YEAR,
+                onClick = {
+                    mode = BrowseMode.YEAR
+                    if (selectedYear == null) selectedYear = 2026
+                }
+            )
         }
+
         Spacer(Modifier.height(12.dp))
+
+        // Contextual sub-filter panel under the selected top box.
+        when (mode) {
+            BrowseMode.GENRE -> GenreChips(
+                selectedGenre = selectedGenre,
+                onSelect = { selectedGenre = it }
+            )
+            BrowseMode.LETTER -> LetterGrid(
+                selected = selectedLetter,
+                onSelect = { selectedLetter = it }
+            )
+            BrowseMode.YEAR -> YearGrid(
+                selected = selectedYear,
+                onSelect = { selectedYear = it }
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
         when {
             loading -> PosterGridShimmer(modifier = Modifier.fillMaxSize())
             error != null -> ErrorBox(error!!) {
-                val g = selectedGenre; selectedGenre = -1; selectedGenre = g
+                // Retry: force a reload by toggling selectedLetter/Year if set.
+                val m = mode; mode = BrowseMode.GENRE; mode = m
             }
             else -> LazyVerticalGrid(
-                columns = GridCells.Adaptive(120.dp),
+                columns = GridCells.Fixed(3),
                 contentPadding = PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -150,6 +186,121 @@ fun BrowseScreen(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BrowseTopBox(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) Flame else SurfaceRaised)
+            .border(1.dp, if (selected) Flame else Hairline, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 10.dp)
+    ) {
+        Text(
+            label,
+            color = if (selected) Void else TextPrimary,
+            fontFamily = Bricolage,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp
+        )
+    }
+}
+
+@Composable
+private fun GenreChips(selectedGenre: Int, onSelect: (Int) -> Unit) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(BrowseGenres, key = { it.id }) { genre ->
+            val selected = genre.id == selectedGenre
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (selected) Flame else SurfaceRaised)
+                    .border(1.dp, if (selected) Flame else Hairline, RoundedCornerShape(10.dp))
+                    .clickable { onSelect(genre.id) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    genre.name,
+                    color = if (selected) Void else TextSecondary,
+                    fontFamily = PlexMono,
+                    fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                    fontSize = 12.5.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LetterGrid(selected: String?, onSelect: (String) -> Unit) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(6),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+    ) {
+        items(ALPHA_KEYS, key = { it }) { key ->
+            val isSel = key == selected
+            Box(
+                Modifier
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSel) Flame else SurfaceRaised)
+                    .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(10.dp))
+                    .clickable { onSelect(key) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    key,
+                    color = if (isSel) Void else TextPrimary,
+                    fontFamily = Bricolage,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun YearGrid(selected: Int?, onSelect: (Int) -> Unit) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(4),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp)
+    ) {
+        items(YEARS, key = { it }) { year ->
+            val isSel = year == selected
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSel) Flame else SurfaceRaised)
+                    .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(10.dp))
+                    .clickable { onSelect(year) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    year.toString(),
+                    color = if (isSel) Void else TextPrimary,
+                    fontFamily = PlexMono,
+                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                    fontSize = 13.sp
+                )
             }
         }
     }
