@@ -345,13 +345,6 @@ fun DetailScreen(
                                 modifier = Modifier.clickable { synopsisExpanded = !synopsisExpanded }
                             )
                         }
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Demo notice: episode streams are public sample videos, not licensed anime.",
-                            color = TextMuted,
-                            fontFamily = PlexMono,
-                            fontSize = 11.sp
-                        )
                         Spacer(Modifier.height(20.dp))
                         CharacterRow(characters = characters)
                         Spacer(Modifier.height(20.dp))
