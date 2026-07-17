@@ -1487,10 +1487,6 @@ fun HeroBackdrop(images: List<String>, fallback: Anime, modifier: Modifier = Mod
                 initialValue = 1.04f, targetValue = 1.1f,
                 animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
             )
-            val pan by kb.animateFloat(
-                initialValue = -6f, targetValue = 6f,
-                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
-            )
             Crossfade(
                 targetState = visible,
                 animationSpec = tween(900),
@@ -1501,12 +1497,12 @@ fun HeroBackdrop(images: List<String>, fallback: Anime, modifier: Modifier = Mod
                         model = url,
                         contentDescription = null,
                         contentScale = ContentScale.Fit,
+                        alignment = Alignment.Center,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
                                 scaleX = scale
                                 scaleY = scale
-                                translationX = pan.dp.toPx()
                             }
                             .blur(2.dp)
                             .clipToBounds()
