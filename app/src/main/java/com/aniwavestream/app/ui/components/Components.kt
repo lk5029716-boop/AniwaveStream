@@ -61,6 +61,9 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
@@ -1177,11 +1180,12 @@ fun AnivaveUpcomingCard(
             Spacer(Modifier.height(6.dp))
             Text(
                 anime.title,
-                color = TextPrimary,
+                color = Color.White,
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(shadow = Shadow(color = Color.Black, offset = Offset(0f, 0f), blurRadius = 10f))
             )
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1191,15 +1195,17 @@ fun AnivaveUpcomingCard(
                     anime.year?.let { "AIRING ${it}" } ?: (anime.status ?: "SOON"),
                     color = Cool,
                     fontFamily = PlexMono,
-                    fontSize = 9.sp
+                    fontSize = 9.sp,
+                    style = TextStyle(shadow = Shadow(color = Color.Black, offset = Offset(0f, 0f), blurRadius = 8f))
                 )
             }
             Spacer(Modifier.height(6.dp))
             Text(
                 (anime.episodes?.let { "${it} eps" } ?: "TBA") + " · ${anime.type ?: ""}",
-                color = TextSecondary,
+                color = Color.White,
                 fontFamily = PlexMono,
-                fontSize = 9.sp
+                fontSize = 9.sp,
+                style = TextStyle(shadow = Shadow(color = Color.Black, offset = Offset(0f, 0f), blurRadius = 8f))
             )
         }
         // Bell alert toggle
