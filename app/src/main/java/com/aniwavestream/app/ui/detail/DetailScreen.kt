@@ -47,13 +47,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import com.aniwavestream.app.data.model.Anime
@@ -138,52 +134,11 @@ fun DetailScreen(
         crash != null -> DetailCrashScreen(crash!!) { loadAll() }
         anime != null -> {
             val a = anime!!
-            // Slow, subtle drift for the airy backdrop
-            val trans = rememberInfiniteTransition(label = "bg")
-            val offset by trans.animateFloat(
-                initialValue = 0f,
-                targetValue = 40f,
-                animationSpec = infiniteRepeatable(tween(9000), RepeatMode.Reverse),
-            )
-            val scale by trans.animateFloat(
-                initialValue = 1.2f,
-                targetValue = 1.35f,
-                animationSpec = infiniteRepeatable(tween(12000), RepeatMode.Reverse),
-            )
-
             Box(Modifier.fillMaxSize().background(Background)) {
-                // Hero backdrop — a FIXED-height band (ends right after the genre names), NOT the
-                // whole screen. Light 6dp blur keeps character faces clearly visible. Below the
-                // hero the normal solid Background shows, so it no longer bleeds down to Play E1.
+                // Blurred backdrop is confined to a SINGLE hero block that ends exactly at the
+                // genre row. Below the genre tags everything is solid Background (Play E1, Info
+                // grid, Synopsis) — never blurred. No fixed band, no black gap above the poster.
                 val bgUrl = a.posterUrl ?: a.bannerUrl
-                Box(Modifier.fillMaxWidth().height(360.dp)) {
-                    if (bgUrl != null) {
-                        AsyncImage(
-                            model = bgUrl,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .offset(x = offset.dp)
-                                .scale(scale)
-                                .blur(6.dp)
-                        )
-                    } else {
-                        AnivaveArt(anime = a, modifier = Modifier.fillMaxSize().blur(6.dp))
-                    }
-                    // Fade only within the hero: transparent at the very top -> solid Background
-                    // at the bottom edge of the band, so the title block stays readable and the
-                    // rest of the screen is clean solid Background.
-                    Box(
-                        Modifier.fillMaxSize().background(
-                            Brush.verticalGradient(
-                                0.0f to Color.Transparent,
-                                0.55f to Background,
-                                1.0f to Background
-                            )
-                        )
-                    )
-                }
 
                 // Back button (overlay, top-left)
                 IconButton(
@@ -197,115 +152,146 @@ fun DetailScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                 }
 
-                // Scrolling content (transparent — the backdrop shows through behind it)
+                // Scrolling content
                 LazyColumn(Modifier.fillMaxSize()) {
-                    // The hero backdrop occupies the first 360.dp; align the title card to sit
-                    // over it. We use a spacer equal to the hero height minus the card offset.
-                    item { Spacer(Modifier.height(330.dp)) }
-
-
+                    // ---- HERO (blurred backdrop covers this whole item: arrow -> poster/title/rating -> genre chips) ----
                     item {
-                    // Left mini poster card + right-side title block
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .offset(y = (-48).dp),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        Box(
-                            Modifier
-                                .width(100.dp)
-                                .height(150.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .border(1.dp, Hairline, RoundedCornerShape(16.dp))
-                                .background(SurfaceRaised)
-                        ) {
-                            AsyncImage(
-                                model = a.posterUrl,
-                                contentDescription = a.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            // Studio / source eyebrow
-                            Row(
-                                Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(Color.Black.copy(alpha = 0.4f))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    Modifier.size(5.dp).clip(CircleShape).background(Flame)
+                        // Local blurred backdrop confined to the hero item only.
+                        Box(Modifier.fillMaxWidth()) {
+                            if (bgUrl != null) {
+                                AsyncImage(
+                                    model = bgUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(320.dp)
+                                        .blur(6.dp)
+                                        .clipToBounds()
                                 )
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    a.studios.firstOrNull() ?: "FEATURED",
-                                    color = Flame,
-                                    fontFamily = PlexMono,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 10.sp,
-                                    letterSpacing = 1.sp
-                                )
+                            } else {
+                                AnivaveArt(anime = a, modifier = Modifier.fillMaxWidth().height(320.dp).blur(6.dp).clipToBounds())
                             }
-                            Spacer(Modifier.height(10.dp))
-                            Text(
-                                a.title,
-                                color = TextPrimary,
-                                fontFamily = Bricolage,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 24.sp,
-                                lineHeight = 28.sp,
-                                letterSpacing = (-0.5).sp
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (a.score != null) {
-                                    Icon(Icons.Default.Star, contentDescription = null, tint = Gold, modifier = Modifier.size(13.dp))
-                                    Spacer(Modifier.width(3.dp))
-                                    Text(
-                                        "%.1f".format(a.score),
-                                        color = Gold,
-                                        fontFamily = PlexMono,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 11.sp
+                            // Fade the very bottom of the hero into solid Background so the
+                            // transition to the Play E1 row (solid black) is seamless.
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp)
+                                    .align(Alignment.Bottom)
+                                    .background(
+                                        Brush.verticalGradient(
+                                            0.0f to Color.Transparent,
+                                            1.0f to Background
+                                        )
                                     )
-                                    Spacer(Modifier.width(10.dp))
+                            )
+                            // Title card + genres sit ON TOP of the blurred image (no offset hack).
+                            Column(Modifier.fillMaxWidth().padding(top = 72.dp, bottom = 16.dp)) {
+                                // Left mini poster card + right-side title block
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.Bottom
+                                ) {
+                                    Box(
+                                        Modifier
+                                            .width(100.dp)
+                                            .height(150.dp)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .border(1.dp, Hairline, RoundedCornerShape(16.dp))
+                                            .background(SurfaceRaised)
+                                    ) {
+                                        AsyncImage(
+                                            model = a.posterUrl,
+                                            contentDescription = a.title,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        // Studio / source eyebrow
+                                        Row(
+                                            Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(Color.Black.copy(alpha = 0.4f))
+                                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                Modifier.size(5.dp).clip(CircleShape).background(Flame)
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(
+                                                a.studios.firstOrNull() ?: "FEATURED",
+                                                color = Flame,
+                                                fontFamily = PlexMono,
+                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 10.sp,
+                                                letterSpacing = 1.sp
+                                            )
+                                        }
+                                        Spacer(Modifier.height(10.dp))
+                                        Text(
+                                            a.title,
+                                            color = TextPrimary,
+                                            fontFamily = Bricolage,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 24.sp,
+                                            lineHeight = 28.sp,
+                                            letterSpacing = (-0.5).sp
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            if (a.score != null) {
+                                                Icon(Icons.Default.Star, contentDescription = null, tint = Gold, modifier = Modifier.size(13.dp))
+                                                Spacer(Modifier.width(3.dp))
+                                                Text(
+                                                    "%.1f".format(a.score),
+                                                    color = Gold,
+                                                    fontFamily = PlexMono,
+                                                    fontWeight = FontWeight.Medium,
+                                                    fontSize = 11.sp
+                                                )
+                                                Spacer(Modifier.width(10.dp))
+                                            }
+                                            Text(
+                                                listOfNotNull(a.year?.toString(), a.type, a.status).joinToString(" · "),
+                                                color = TextSecondary,
+                                                fontFamily = PlexMono,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
                                 }
-                                Text(
-                                    listOfNotNull(a.year?.toString(), a.type, a.status).joinToString(" · "),
-                                    color = TextSecondary,
-                                    fontFamily = PlexMono,
-                                    fontSize = 11.sp
-                                )
+                                Spacer(Modifier.height(12.dp))
+                                // Genre pills
+                                androidx.compose.foundation.lazy.LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    items(a.genres) { g ->
+                                        Box(
+                                            Modifier
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .border(1.dp, Hairline, RoundedCornerShape(10.dp))
+                                                .background(SurfaceRaised)
+                                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Text(g, color = TextSecondary, fontFamily = PlexMono, fontSize = 12.sp)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                }
-                item {
-                    Column(Modifier.padding(horizontal = 16.dp)) {
-                        Spacer(Modifier.height(8.dp))
-                        // Genre pills
-                        androidx.compose.foundation.lazy.LazyRow(
-                            contentPadding = PaddingValues(0.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(a.genres) { g ->
-                                Box(
-                                    Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .border(1.dp, Hairline, RoundedCornerShape(10.dp))
-                                        .background(SurfaceRaised)
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Text(g, color = TextSecondary, fontFamily = PlexMono, fontSize = 12.sp)
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(16.dp))
+
+                    // ---- BELOW GENRE ROW: solid Background, never blurred ----
+                    item {
+                        Column(Modifier.padding(horizontal = 16.dp)) {
+                            Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             PrimaryPillButton(text = "Play E1", leadingIcon = Icons.Default.PlayArrow, onClick = { onPlay(1) })
                             SecondaryPillButton(
