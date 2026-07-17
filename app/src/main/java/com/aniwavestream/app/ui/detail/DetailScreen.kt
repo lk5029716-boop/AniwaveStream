@@ -50,6 +50,16 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
+import kotlinx.coroutines.delay
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import com.aniwavestream.app.data.model.Anime
@@ -146,6 +156,7 @@ fun DetailScreen(
                 IconButton(
                     onClick = onBack,
                     modifier = Modifier
+                        .zIndex(10f)
                         .align(Alignment.TopStart)
                         .padding(12.dp)
                         .clip(CircleShape)
@@ -158,34 +169,23 @@ fun DetailScreen(
                 LazyColumn(Modifier.fillMaxSize()) {
                     // ---- HERO (blurred backdrop covers this whole item: arrow -> poster/title/rating -> genre chips) ----
                     item {
-                        // Local blurred backdrop confined to the hero item only.
+                        // Hero: crossfading Ken-Burns backdrop carousel behind the content.
+                        val heroImages = remember(a.id, characters) {
+                            (listOfNotNull(a.bannerUrl, a.posterUrl) +
+                                characters.mapNotNull { it.imageUrl }).distinct().take(5)
+                        }
                         Box(Modifier.fillMaxWidth()) {
-                            if (bgUrl != null) {
-                                AsyncImage(
-                                    model = bgUrl,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(320.dp)
-                                        .blur(2.dp)
-                                        .clipToBounds()
-                                )
-                            } else {
-                                AnivaveArt(anime = a, modifier = Modifier.fillMaxWidth().height(320.dp).blur(2.dp).clipToBounds())
-                            }
-                            // Gradual soft fade of the backdrop into solid Background — no hard
-                            // edge. Reaches solid black right where the buttons begin.
+                            HeroBackdrop(images = heroImages, fallback = a, modifier = Modifier.matchParentSize())
+                            // Gradual soft fade: clear over poster/title/genres, fading to solid
+                            // black through the Play E1 / My List buttons at the hero bottom.
                             Box(
                                 Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                                    .align(Alignment.BottomCenter)
+                                    .matchParentSize()
                                     .background(
                                         Brush.verticalGradient(
                                             0.0f to Color.Transparent,
-                                            0.35f to Background.copy(alpha = 0.35f),
-                                            0.7f to Background.copy(alpha = 0.8f),
+                                            0.45f to Color.Transparent,
+                                            0.8f to Background.copy(alpha = 0.75f),
                                             1.0f to Background
                                         )
                                     )
@@ -288,23 +288,28 @@ fun DetailScreen(
                                         }
                                     }
                                 }
+                                Spacer(Modifier.height(16.dp))
+                                // Play E1 / My List — same position (below genres, above Info box),
+                                // now sitting on the soft backdrop fade.
+                                Row(
+                                    Modifier.padding(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    PrimaryPillButton(text = "Play E1", leadingIcon = Icons.Default.PlayArrow, onClick = { onPlay(1) })
+                                    SecondaryPillButton(
+                                        text = if (inList) "In List" else "My List",
+                                        leadingIcon = if (inList) Icons.Default.Check else Icons.Default.Add,
+                                        onClick = { scope.launch { library.toggleMyList(animeId) } }
+                                    )
+                                }
                             }
                         }
                     }
 
-                    // ---- BELOW GENRE ROW: solid Background, never blurred ----
+                    // ---- BELOW HERO: solid Background, never blurred ----
                     item {
                         Column(Modifier.padding(horizontal = 16.dp)) {
-                            Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            PrimaryPillButton(text = "Play E1", leadingIcon = Icons.Default.PlayArrow, onClick = { onPlay(1) })
-                            SecondaryPillButton(
-                                text = if (inList) "In List" else "My List",
-                                leadingIcon = if (inList) Icons.Default.Check else Icons.Default.Add,
-                                onClick = { scope.launch { library.toggleMyList(animeId) } }
-                            )
-                        }
-                        Spacer(Modifier.height(20.dp))
+                            Spacer(Modifier.height(20.dp))
                         // Info grid (Source / Status / Episodes)
                         Row(
                             Modifier
@@ -407,5 +412,63 @@ private fun InfoCell(label: String, value: String) {
         Text(label, color = TextMuted, fontFamily = PlexMono, fontSize = 10.sp, letterSpacing = 1.sp)
         Spacer(Modifier.height(4.dp))
         Text(value, color = TextPrimary, fontFamily = PlexMono, fontWeight = FontWeight.Medium, fontSize = 12.sp)
+    }
+}
+
+/**
+ * Crossfading blurred backdrop carousel with a slow Ken Burns zoom/pan per image.
+ * Sizes itself to its parent (the hero content) via Modifier.matchParentSize, so it fills
+ * exactly the hero area and fades out behind the Play E1 / My List buttons — no overflow,
+ * no black gap, and it never pushes layout around.
+ */
+@Composable
+private fun HeroBackdrop(images: List<String>, fallback: Anime, modifier: Modifier = Modifier) {
+    val list = if (images.isNotEmpty()) images else listOf(fallback.posterUrl ?: "")
+    if (list.isEmpty() || list.first().isEmpty()) {
+        AnivaveArt(anime = fallback, modifier = modifier.blur(2.dp).clipToBounds())
+        return
+    }
+    var index by remember { mutableStateOf(0) }
+    LaunchedEffect(list) {
+        while (true) {
+            delay(4500L)
+            index = (index + 1) % list.size
+        }
+    }
+    Box(modifier.clipToBounds()) {
+        list.forEachIndexed { i, url ->
+            val visible = i == index
+            val kb = rememberInfiniteTransition()
+            val scale by kb.animateFloat(
+                initialValue = 1.08f, targetValue = 1.16f,
+                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
+            )
+            val pan by kb.animateFloat(
+                initialValue = -12f, targetValue = 12f,
+                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
+            )
+            Crossfade(
+                targetState = visible,
+                animationSpec = tween(900),
+                modifier = Modifier.fillMaxSize()
+            ) { show ->
+                if (show) {
+                    AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                translationX = pan.dp.toPx()
+                            }
+                            .blur(2.dp)
+                            .clipToBounds()
+                    )
+                }
+            }
+        }
     }
 }
