@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.delay
 
 /**
  * Minimal AniList GraphQL client (https://graphql.anilist.co).
@@ -53,12 +54,24 @@ object AniListApi {
             .url(BASE)
             .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody("application/json".toMediaType()))
             .build()
-        client.newCall(request).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) {
-                throw RuntimeException("AniList HTTP ${resp.code}: ${text.take(200)}")
+        // Retry transient failures (HTTP 429 rate-limit / 5xx) with backoff so a single
+        // throttled response never silently drops data (e.g. the characters query).
+        val maxAttempts = 4
+        var attempt = 0
+        while (true) {
+            attempt++
+            client.newCall(request).execute().use { resp ->
+                val text = resp.body?.string().orEmpty()
+                val code = resp.code
+                if (resp.isSuccessful) return text
+                val retryable = code == 429 || code >= 500
+                if (!retryable || attempt >= maxAttempts) {
+                    throw RuntimeException("AniList HTTP $code: ${text.take(200)}")
+                }
+                val retryAfter = resp.headers["Retry-After"]?.toLongOrNull()
+                val waitMs = ((retryAfter ?: 0L) * 1000L).coerceAtLeast(300L * attempt * 1000L)
+                delay(waitMs.coerceAtMost(8000L))
             }
-            return text
         }
     }
 
