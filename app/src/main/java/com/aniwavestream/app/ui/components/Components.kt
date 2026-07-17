@@ -1486,7 +1486,7 @@ fun KenBurnsImage(
     var cardSize by remember { mutableStateOf(IntSize.Zero) }
     val painter = rememberAsyncImagePainter(model)
     // Intrinsic image size is known only after the painter loads; derivedStateOf re-composes then.
-    val imgSize by derivedStateOf { painter.intrinsicSize.toIntSize() }
+    val imgSize by derivedStateOf { painter.intrinsicSize.roundToIntSize() }
     val kb = rememberInfiniteTransition()
     // Zoom: subtle 1.05 -> 1.10 on its own clock.
     val scale by kb.animateFloat(
