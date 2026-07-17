@@ -4,6 +4,12 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -52,11 +58,15 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -1430,5 +1440,63 @@ fun ScheduleRow(
             Text(s.status, color = statusColor, fontFamily = PlexMono, fontSize = 8.5.sp, fontWeight = FontWeight.Medium)
         }
         Text("●", color = Cool, fontSize = 10.sp, fontFamily = PlexMono)
+    }
+}
+
+/**
+ * Crossfading blurred backdrop carousel with a slow Ken Burns zoom/pan per image.
+ * Sizes itself to its parent via Modifier.fillMaxSize, so it fills exactly the hero area
+ * and fades out behind the content — no overflow, no black gap, and it never pushes layout.
+ * Shared by DetailScreen and the Upcoming See-All screen.
+ */
+@Composable
+fun HeroBackdrop(images: List<String>, fallback: Anime, modifier: Modifier = Modifier) {
+    val list = if (images.isNotEmpty()) images else listOf(fallback.posterUrl ?: "")
+    if (list.isEmpty() || list.first().isEmpty()) {
+        AnivaveArt(anime = fallback, modifier = modifier.blur(2.dp).clipToBounds())
+        return
+    }
+    var index by remember { mutableStateOf(0) }
+    LaunchedEffect(list) {
+        while (true) {
+            delay(4500L)
+            index = (index + 1) % list.size
+        }
+    }
+    Box(modifier.clipToBounds()) {
+        list.forEachIndexed { i, url ->
+            val visible = i == index
+            val kb = rememberInfiniteTransition()
+            val scale by kb.animateFloat(
+                initialValue = 1.08f, targetValue = 1.16f,
+                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
+            )
+            val pan by kb.animateFloat(
+                initialValue = -12f, targetValue = 12f,
+                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
+            )
+            Crossfade(
+                targetState = visible,
+                animationSpec = tween(900),
+                modifier = Modifier.fillMaxSize()
+            ) { show ->
+                if (show) {
+                    AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                translationX = pan.dp.toPx()
+                            }
+                            .blur(2.dp)
+                            .clipToBounds()
+                    )
+                }
+            }
+        }
     }
 }
