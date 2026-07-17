@@ -312,12 +312,6 @@ fun PlayerScreen(
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    stringResource(R.string.demo_stream_notice),
-                    color = TextSecondary,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(8.dp))
                 TextButton(onClick = {
                     if (episode < maxEp) onEpisodeChange(episode + 1)
                 }) {
