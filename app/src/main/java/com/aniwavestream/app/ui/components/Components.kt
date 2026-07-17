@@ -57,6 +57,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -1128,16 +1130,31 @@ fun AnivaveUpcomingCard(
     modifier: Modifier = Modifier
 ) {
     var alertOn by remember { mutableStateOf(false) }
-    Row(
+    // Blurred art backdrop behind the card (home "Upcoming Anime" row only).
+    Box(
         modifier
             .width(280.dp)
             .clip(RoundedCornerShape(18.dp))
-            .border(1.dp, Hairline, RoundedCornerShape(18.dp))
-            .background(SurfaceRaised.copy(alpha = 0.6f))
-            .clickable { onItem() }
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
+        AnivaveArt(
+            anime = anime,
+            modifier = Modifier
+                .matchParentSize()
+                .blur(14.dp)
+                .clipToBounds()
+        )
+        // Scrim so the card text + portrait stay readable over the art.
+        Box(Modifier.matchParentSize().background(Brush.horizontalGradient(0.0f to Background.copy(alpha = 0.45f), 0.55f to Background.copy(alpha = 0.7f), 1.0f to Background.copy(alpha = 0.85f))))
+        Row(
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .border(1.dp, Hairline, RoundedCornerShape(18.dp))
+                .background(SurfaceRaised.copy(alpha = 0.35f))
+                .clickable { onItem() }
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
         // Portrait art
         Box(
             Modifier
@@ -1202,6 +1219,7 @@ fun AnivaveUpcomingCard(
                 tint = if (alertOn) Flame else TextMuted,
                 modifier = Modifier.size(16.dp)
             )
+        }
         }
     }
 }
