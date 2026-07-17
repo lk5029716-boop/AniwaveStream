@@ -59,6 +59,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import kotlinx.coroutines.delay
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
@@ -435,17 +436,31 @@ private fun HeroBackdrop(images: List<String>, fallback: Anime, modifier: Modifi
             index = (index + 1) % list.size
         }
     }
+    // Scrim breathing: bottom gradient opacity oscillates 0.7 -> 0.85 synced to the zoom cycle (18s),
+    // so text contrast stays strong at every zoom level.
+    val kbScrim = rememberInfiniteTransition()
+    val scrimAlpha by kbScrim.animateFloat(
+        initialValue = 0.7f, targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(tween(18000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
+    )
     Box(modifier.clipToBounds()) {
         list.forEachIndexed { i, url ->
             val visible = i == index
             val kb = rememberInfiniteTransition()
+            // Zoom: 1.05 -> 1.18 (pre-motion floor), eased, 18s.
             val scale by kb.animateFloat(
-                initialValue = 1.08f, targetValue = 1.16f,
-                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
+                initialValue = 1.05f, targetValue = 1.18f,
+                animationSpec = infiniteRepeatable(tween(18000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
             )
-            val pan by kb.animateFloat(
-                initialValue = -12f, targetValue = 12f,
-                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
+            // Pan X: +/-18dp, eased, 22s.
+            val panX by kb.animateFloat(
+                initialValue = -18f, targetValue = 18f,
+                animationSpec = infiniteRepeatable(tween(22000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
+            )
+            // Pan Y: +/-14dp, eased, 20s.
+            val panY by kb.animateFloat(
+                initialValue = -14f, targetValue = 14f,
+                animationSpec = infiniteRepeatable(tween(20000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
             )
             Crossfade(
                 targetState = visible,
@@ -462,7 +477,8 @@ private fun HeroBackdrop(images: List<String>, fallback: Anime, modifier: Modifi
                             .graphicsLayer {
                                 scaleX = scale
                                 scaleY = scale
-                                translationX = pan.dp.toPx()
+                                translationX = panX.dp.toPx()
+                                translationY = panY.dp.toPx()
                             }
                             .blur(2.dp)
                             .clipToBounds()
@@ -470,5 +486,17 @@ private fun HeroBackdrop(images: List<String>, fallback: Anime, modifier: Modifi
                 }
             }
         }
+        // Breathing bottom scrim for legibility.
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = scrimAlpha)),
+                        startY = 0f,
+                        endY = Float.POSITIVE_INFINITY
+                    )
+                )
+        )
     }
 }

@@ -9,6 +9,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1141,19 +1142,19 @@ fun AnivaveUpcomingCard(
 ) {
     var alertOn by remember { mutableStateOf(false) }
     // Blurred art backdrop behind the card (home "Upcoming Anime" row only).
-    // Light blur + slow Ken-Burns pan so a long cover drifts and reveals every part.
+    // Light blur + slow cinematic Ken-Burns pan/zoom so a long cover drifts and reveals every part.
     val kb = rememberInfiniteTransition()
     val kbScale by kb.animateFloat(
-        initialValue = 1f, targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(tween(11000, easing = LinearEasing), RepeatMode.Reverse)
+        initialValue = 1.05f, targetValue = 1.18f,
+        animationSpec = infiniteRepeatable(tween(18000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
     )
     val kbX by kb.animateFloat(
-        initialValue = -8f, targetValue = 8f,
-        animationSpec = infiniteRepeatable(tween(11000, easing = LinearEasing), RepeatMode.Reverse)
+        initialValue = -18f, targetValue = 18f,
+        animationSpec = infiniteRepeatable(tween(22000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
     )
     val kbY by kb.animateFloat(
-        initialValue = -6f, targetValue = 6f,
-        animationSpec = infiniteRepeatable(tween(11000, easing = LinearEasing), RepeatMode.Reverse)
+        initialValue = -14f, targetValue = 14f,
+        animationSpec = infiniteRepeatable(tween(20000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
     )
     Box(
         modifier
