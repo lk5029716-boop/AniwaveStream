@@ -55,7 +55,6 @@ import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.ui.PlayerView
 import com.aniwavestream.app.R
-import com.aniwavestream.app.data.model.DemoStreams
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.api.AniwavesApi
 import com.aniwavestream.app.data.repository.UserLibraryStore
@@ -112,13 +111,17 @@ fun PlayerScreen(
     }
 
     // Real stream resolution: hit the self-hosted Aniwaves API (vidplay / bymas) for
-    // this anime's title + episode. Falls back to the open demo stream if the API
-    // is unreachable or returns nothing, so the player never hard-fails.
-    var streamUrl by remember(animeId, episode) { mutableStateOf(DemoStreams.forEpisode(animeId, episode)) }
-    LaunchedEffect(animeId, episode, title) {
-        // title comes from the detail LaunchedEffect above; resolve only when we have it.
-        val resolved = runCatching { AniwavesApi.resolveStream(title.ifBlank { null } ?: return@LaunchedEffect, episode) }.getOrNull()
-        if (!resolved.isNullOrBlank()) streamUrl = resolved
+    // this anime's title + episode. NO demo fallback -- if it can't resolve we show
+    // a real error overlay (retry), never a fake sample video.
+    var streamUrl by remember(animeId, episode) { mutableStateOf<String?>(null) }
+    var resolveError by remember(animeId, episode) { mutableStateOf(false) }
+    var reloadKey by remember { mutableStateOf(0) }
+    LaunchedEffect(animeId, episode, title, reloadKey) {
+        if (title.isBlank()) return@LaunchedEffect
+        resolveError = false
+        val resolved = runCatching { AniwavesApi.resolveStream(title, episode) }.getOrNull()
+        if (!resolved.isNullOrBlank()) { streamUrl = resolved; resolveError = false }
+        else { streamUrl = null; resolveError = true }
     }
 
     // All player mutations are guarded: if the player was released by a
@@ -129,10 +132,10 @@ fun PlayerScreen(
     }
 
     LaunchedEffect(streamUrl) {
+        val url = streamUrl ?: return@LaunchedEffect
         vm.clearError()
-        // DRM-ready item builder (Rule 12); demo streams pass no license URL.
         safePlayer {
-            setMediaItem(PlayerModule.buildMediaItem(streamUrl))
+            setMediaItem(PlayerModule.buildMediaItem(url))
             prepare()
             play()
         }
@@ -297,14 +300,20 @@ fun PlayerScreen(
                 )
             }
 
-            playbackError?.let {
+            if (playbackError != null || resolveError) {
                 PlaybackErrorOverlay(
                     onRetry = {
                         vm.clearError()
-                        safePlayer {
-                            setMediaItem(PlayerModule.buildMediaItem(streamUrl))
-                            prepare()
-                            play()
+                        if (streamUrl != null) {
+                            safePlayer {
+                                setMediaItem(PlayerModule.buildMediaItem(streamUrl!!))
+                                prepare()
+                                play()
+                            }
+                        } else {
+                            // resolution had failed: re-run the resolve LaunchedEffect
+                            resolveError = false
+                            reloadKey++
                         }
                     }
                 )
