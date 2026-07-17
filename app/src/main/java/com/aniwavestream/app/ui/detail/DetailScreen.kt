@@ -178,7 +178,7 @@ fun DetailScreen(
                                 Modifier
                                     .fillMaxWidth()
                                     .height(120.dp)
-                                    .align(Alignment.Bottom)
+                                    .align(Alignment.BottomCenter)
                                     .background(
                                         Brush.verticalGradient(
                                             0.0f to Color.Transparent,
