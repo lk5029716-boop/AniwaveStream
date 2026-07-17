@@ -119,6 +119,9 @@ fun PlayerScreen(
     LaunchedEffect(animeId, episode, title, reloadKey) {
         if (title.isBlank()) return@LaunchedEffect
         resolveError = false
+        // Wake the (free-tier) backend so the multi-step resolve chain doesn't
+        // time out on a cold start.
+        runCatching { AniwavesApi.warmUp() }
         val resolved = runCatching { AniwavesApi.resolveStream(title, episode) }.getOrNull()
         if (!resolved.isNullOrBlank()) { streamUrl = resolved; resolveError = false }
         else { streamUrl = null; resolveError = true }
@@ -131,13 +134,26 @@ fun PlayerScreen(
         runCatching { exoPlayer.block() }
     }
 
+    // ExoPlayer load with automatic retry+backoff. A cold backend (Render free
+    // tier) can take >30s to wake; the first prepare() may snag. Retrying a few
+    // times with delay lets it self-heal instead of showing a permanent error.
     LaunchedEffect(streamUrl) {
         val url = streamUrl ?: return@LaunchedEffect
         vm.clearError()
-        safePlayer {
-            setMediaItem(PlayerModule.buildMediaItem(url))
-            prepare()
-            play()
+        var attempt = 0
+        val maxAttempts = 3
+        while (attempt < maxAttempts) {
+            attempt++
+            val ok = runCatching {
+                safePlayer {
+                    setMediaItem(PlayerModule.buildMediaItem(url))
+                    prepare()
+                    play()
+                }
+            }.isSuccess
+            // If ExoPlayer reports an error this soon, wait and retry.
+            if (vm.error.value == null) break
+            if (attempt < maxAttempts) kotlinx.coroutines.delay(2500L * attempt)
         }
     }
 
