@@ -57,6 +57,7 @@ import androidx.media3.ui.PlayerView
 import com.aniwavestream.app.R
 import com.aniwavestream.app.data.model.DemoStreams
 import com.aniwavestream.app.data.repository.AnimeRepository
+import com.aniwavestream.app.data.api.AniwavesApi
 import com.aniwavestream.app.data.repository.UserLibraryStore
 import com.aniwavestream.app.player.PlayerModule
 import com.aniwavestream.app.player.PlayerViewModel
@@ -110,8 +111,14 @@ fun PlayerScreen(
         }
     }
 
-    val streamUrl = remember(animeId, episode) {
-        DemoStreams.forEpisode(animeId, episode)
+    // Real stream resolution: hit the self-hosted Aniwaves API (vidplay / bymas) for
+    // this anime's title + episode. Falls back to the open demo stream if the API
+    // is unreachable or returns nothing, so the player never hard-fails.
+    var streamUrl by remember(animeId, episode) { mutableStateOf(DemoStreams.forEpisode(animeId, episode)) }
+    LaunchedEffect(animeId, episode, title) {
+        // title comes from the detail LaunchedEffect above; resolve only when we have it.
+        val resolved = runCatching { AniwavesApi.resolveStream(title.ifBlank { null } ?: return@LaunchedEffect, episode) }.getOrNull()
+        if (!resolved.isNullOrBlank()) streamUrl = resolved
     }
 
     // All player mutations are guarded: if the player was released by a
