@@ -326,6 +326,13 @@ data class Character(
     val role: String?
 )
 
+/** Combined detail payload fetched from AniList in a SINGLE GraphQL call (media + characters + recommendations). */
+data class DetailData(
+    val anime: Anime,
+    val characters: List<Character>,
+    val recommendations: List<Anime>
+)
+
 fun CharacterEdgeDto.toCharacter(): Character? {
     val c = character ?: return null
     return Character(
