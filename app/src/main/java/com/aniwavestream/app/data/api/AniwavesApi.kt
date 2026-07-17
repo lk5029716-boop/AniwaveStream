@@ -40,6 +40,16 @@ object AniwavesApi {
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
+    /**
+     * Ping /api/health once. The backend is hosted on Render's free tier, which
+     * spins down after inactivity; the first call can take several seconds to
+     * wake it. Hitting health first means the real (multi-step) resolve chain
+     * doesn't blow past ExoPlayer's 30s timeout on its very first request.
+     */
+    fun warmUp() {
+        try { get("/api/health") } catch (_: Exception) { /* best-effort only */ }
+    }
+
     private fun get(path: String): String {
         val req = Request.Builder()
             .url("$BASE$path")
