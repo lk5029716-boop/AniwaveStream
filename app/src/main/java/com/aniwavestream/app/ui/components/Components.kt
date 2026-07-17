@@ -52,15 +52,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1145,11 +1136,12 @@ fun AnivaveUpcomingCard(
             .width(280.dp)
             .clip(RoundedCornerShape(18.dp))
     ) {
-        // Light blur + crossfade/Ken-Burns carousel; full cover kept visible (ContentScale.Fit).
-        HeroBackdrop(
-            images = listOfNotNull(anime.bannerUrl) + listOfNotNull(anime.posterUrl),
-            fallback = anime,
-            modifier = Modifier.matchParentSize()
+        AnivaveArt(
+            anime = anime,
+            modifier = Modifier
+                .matchParentSize()
+                .blur(14.dp)
+                .clipToBounds()
         )
         // Scrim so the card text + portrait stay readable over the art.
         Box(Modifier.matchParentSize().background(Brush.horizontalGradient(0.0f to Background.copy(alpha = 0.45f), 0.55f to Background.copy(alpha = 0.7f), 1.0f to Background.copy(alpha = 0.85f))))
@@ -1456,59 +1448,5 @@ fun ScheduleRow(
             Text(s.status, color = statusColor, fontFamily = PlexMono, fontSize = 8.5.sp, fontWeight = FontWeight.Medium)
         }
         Text("●", color = Cool, fontSize = 10.sp, fontFamily = PlexMono)
-    }
-}
-
-/**
- * Crossfading blurred backdrop carousel with a slow Ken Burns zoom/pan per image.
- * Shared by the Detail screen and the home Upcoming Anime cards.
- * Uses ContentScale.Fit so the full cover image stays visible (not cropped), with a light
- * 2.dp blur so characters/faces remain recognizable. Loops continuously (~4.5s/image).
- */
-@Composable
-fun HeroBackdrop(images: List<String>, fallback: Anime, modifier: Modifier = Modifier) {
-    val list = if (images.isNotEmpty()) images else listOf(fallback.posterUrl ?: "")
-    if (list.isEmpty() || list.first().isEmpty()) {
-        AnivaveArt(anime = fallback, modifier = modifier.blur(2.dp).clipToBounds())
-        return
-    }
-    var index by remember { mutableStateOf(0) }
-    LaunchedEffect(list) {
-        while (true) {
-            delay(4500L)
-            index = (index + 1) % list.size
-        }
-    }
-    Box(modifier.clipToBounds()) {
-        list.forEachIndexed { i, url ->
-            val visible = i == index
-            val kb = rememberInfiniteTransition()
-            val scale by kb.animateFloat(
-                initialValue = 1.04f, targetValue = 1.1f,
-                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
-            )
-            Crossfade(
-                targetState = visible,
-                animationSpec = tween(900),
-                modifier = Modifier.fillMaxSize()
-            ) { show ->
-                if (show) {
-                    AsyncImage(
-                        model = url,
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        alignment = Alignment.Center,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                            }
-                            .blur(2.dp)
-                            .clipToBounds()
-                    )
-                }
-            }
-        }
     }
 }
