@@ -1194,8 +1194,9 @@ fun AnivaveUpcomingCard(
                 Text(
                     anime.year?.let { "AIRING ${it}" } ?: (anime.status ?: "SOON"),
                     color = Cool,
-                    fontFamily = PlexMono,
-                    fontSize = 9.sp,
+                    fontFamily = Bricolage,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.5.sp,
                     style = TextStyle(shadow = Shadow(color = Color.Black, offset = Offset(0f, 0f), blurRadius = 8f))
                 )
             }
@@ -1203,8 +1204,9 @@ fun AnivaveUpcomingCard(
             Text(
                 (anime.episodes?.let { "${it} eps" } ?: "TBA") + " · ${anime.type ?: ""}",
                 color = Color.White,
-                fontFamily = PlexMono,
-                fontSize = 9.sp,
+                fontFamily = Bricolage,
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.5.sp,
                 style = TextStyle(shadow = Shadow(color = Color.Black, offset = Offset(0f, 0f), blurRadius = 8f))
             )
         }
