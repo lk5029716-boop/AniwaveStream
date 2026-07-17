@@ -11,7 +11,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.delay
 
 /**
  * Minimal AniList GraphQL client (https://graphql.anilist.co).
@@ -69,8 +68,8 @@ object AniListApi {
                     throw RuntimeException("AniList HTTP $code: ${text.take(200)}")
                 }
                 val retryAfter = resp.headers["Retry-After"]?.toLongOrNull()
-                val waitMs = ((retryAfter ?: 0L) * 1000L).coerceAtLeast(300L * attempt * 1000L)
-                delay(waitMs.coerceAtMost(8000L))
+                val waitMs = ((retryAfter ?: 0L) * 1000L).coerceAtLeast(attempt * 1000L).coerceAtMost(8000L)
+                Thread.sleep(waitMs)
             }
         }
     }
