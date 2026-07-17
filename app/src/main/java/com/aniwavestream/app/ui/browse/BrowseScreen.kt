@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.lazy.items
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -75,7 +77,16 @@ private fun rangeLetters(range: String): List<String> = when (range) {
     "U–Z" -> ('U'..'Z').map { it.toString() }
     else -> emptyList()
 }
-private val YEARS = (2006..2026).toList().reversed()
+private val DECADES = listOf("2020s", "2010s", "2000s", "1990s", "1980s", "1970s", "1960s", "1950s", "1940s")
+private fun decadeYears(decade: String): List<Int> {
+    val start = when (decade) {
+        "2020s" -> 2020; "2010s" -> 2010; "2000s" -> 2000
+        "1990s" -> 1990; "1980s" -> 1980; "1970s" -> 1970
+        "1960s" -> 1960; "1950s" -> 1950; "1940s" -> 1940
+        else -> 2020
+    }
+    return (start..minOf(start + 9, 2026)).toList().reversed()
+}
 
 @Composable
 fun BrowseScreen(
@@ -88,6 +99,8 @@ fun BrowseScreen(
     // Two-step All-Anime selector: a range ("ALL" / "A–E" ...), then a single letter.
     var selectedRange by remember { mutableStateOf<String?>(null) }
     var selectedLetter by remember { mutableStateOf<String?>(null) }
+    // Two-step Release-Year selector: a decade, then a single year.
+    var selectedDecade by remember { mutableStateOf<String?>(null) }
     var selectedYear by remember { mutableStateOf<Int?>(null) }
 
     var loading by remember { mutableStateOf(true) }
@@ -95,7 +108,7 @@ fun BrowseScreen(
     var items by remember { mutableStateOf<List<Anime>>(emptyList()) }
 
     // (Re)load whenever the active filter changes.
-    LaunchedEffect(mode, selectedGenre, selectedRange, selectedLetter, selectedYear) {
+    LaunchedEffect(mode, selectedGenre, selectedRange, selectedLetter, selectedDecade, selectedYear) {
         loading = true
         error = null
         val result = when (mode) {
@@ -150,7 +163,10 @@ fun BrowseScreen(
                 selected = mode == BrowseMode.YEAR,
                 onClick = {
                     mode = BrowseMode.YEAR
-                    if (selectedYear == null) selectedYear = 2026
+                    if (selectedDecade == null) {
+                        selectedDecade = "2020s"
+                        selectedYear = 2026
+                    }
                 }
             )
         }
@@ -172,9 +188,14 @@ fun BrowseScreen(
                 },
                 onLetter = { selectedLetter = it }
             )
-            BrowseMode.YEAR -> YearGrid(
-                selected = selectedYear,
-                onSelect = { selectedYear = it }
+            BrowseMode.YEAR -> DecadeYearSelector(
+                selectedDecade = selectedDecade,
+                selectedYear = selectedYear,
+                onDecade = { decade ->
+                    selectedDecade = decade
+                    selectedYear = decadeYears(decade).first()
+                },
+                onYear = { selectedYear = it }
             )
         }
 
@@ -339,33 +360,76 @@ private fun LetterRangeSelector(
 }
 
 @Composable
-private fun YearGrid(selected: Int?, onSelect: (Int) -> Unit) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(4),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(220.dp)
-    ) {
-        items(YEARS, key = { it }) { year ->
-            val isSel = year == selected
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (isSel) Flame else SurfaceRaised)
-                    .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(10.dp))
-                    .clickable { onSelect(year) },
-                contentAlignment = Alignment.Center
+private fun DecadeYearSelector(
+    selectedDecade: String?,
+    selectedYear: Int?,
+    onDecade: (String) -> Unit,
+    onYear: (Int) -> Unit
+) {
+    val years = decadeYears(selectedDecade ?: "2020s")
+    val listState = rememberLazyListState()
+    val fling = rememberSnapFlingBehavior(listState)
+
+    Column(Modifier.fillMaxWidth()) {
+        // Step1 — decade chips (one active, accent filled).
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(DECADES) { decade ->
+                val isSel = decade == selectedDecade
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSel) Flame else SurfaceRaised)
+                        .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(10.dp))
+                        .clickable { onDecade(decade) }
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        decade,
+                        color = if (isSel) Void else TextPrimary,
+                        fontFamily = Bricolage,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+
+        // Step2 — years of the selected decade, horizontally scrollable with snapping.
+        AnimatedVisibility(
+            visible = selectedDecade != null,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
+        ) {
+            LazyRow(
+                state = listState,
+                flingBehavior = fling,
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    year.toString(),
-                    color = if (isSel) Void else TextPrimary,
-                    fontFamily = PlexMono,
-                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                    fontSize = 13.sp
-                )
+                items(years, key = { it }) { year ->
+                    val isSel = year == selectedYear
+                    Box(
+                        Modifier
+                            .size(width = 64.dp, height = 40.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (isSel) Flame else SurfaceRaised)
+                            .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(20.dp))
+                            .clickable { onYear(year) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            year.toString(),
+                            color = if (isSel) Void else TextPrimary,
+                            fontFamily = Bricolage,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+                }
             }
         }
     }
