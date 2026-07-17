@@ -3,6 +3,12 @@ package com.aniwavestream.app.ui.components
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -63,6 +69,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -1134,6 +1141,20 @@ fun AnivaveUpcomingCard(
 ) {
     var alertOn by remember { mutableStateOf(false) }
     // Blurred art backdrop behind the card (home "Upcoming Anime" row only).
+    // Light blur + slow Ken-Burns pan so a long cover drifts and reveals every part.
+    val kb = rememberInfiniteTransition()
+    val kbScale by kb.animateFloat(
+        initialValue = 1f, targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(tween(11000, easing = LinearEasing), RepeatMode.Reverse)
+    )
+    val kbX by kb.animateFloat(
+        initialValue = -8f, targetValue = 8f,
+        animationSpec = infiniteRepeatable(tween(11000, easing = LinearEasing), RepeatMode.Reverse)
+    )
+    val kbY by kb.animateFloat(
+        initialValue = -6f, targetValue = 6f,
+        animationSpec = infiniteRepeatable(tween(11000, easing = LinearEasing), RepeatMode.Reverse)
+    )
     Box(
         modifier
             .width(280.dp)
@@ -1145,7 +1166,13 @@ fun AnivaveUpcomingCard(
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .matchParentSize()
-                .blur(2.dp)
+                .graphicsLayer {
+                    scaleX = kbScale
+                    scaleY = kbScale
+                    translationX = kbX.dp.toPx()
+                    translationY = kbY.dp.toPx()
+                }
+                .blur(0.6.dp)
                 .clipToBounds()
         )
         Row(
