@@ -2,8 +2,15 @@ package com.aniwavestream.app.data.api
 
 import android.util.Log
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 /**
@@ -15,15 +22,15 @@ import java.util.concurrent.TimeUnit
  *   2) /api/servers?episodeId=<slug>-ep-<N>&type=sub -> list of server ids
  *   3) /api/stream?serverId=<id> -> proxiedM3u8 (CORS-safe, same-origin)
  *
- * /api/stream returns a [proxiedM3u8] URL that is ALREADY rewritten through the
- * backend's own /api/proxy, so the Android player can load it directly without
- * hitting the CDN's CORS/referer lock. We prefer "Vidplay", then "BYFMS"/"bymas".
+ * /api/stream returns a [proxiedM3u8] URL already rewritten through the backend's
+ * own /api/proxy, so the Android player can load it directly without hitting the
+ * CDN's CORS/referer lock. We prefer "Vidplay", then "BYFMS"/"bymas".
  *
- * Any failure falls back to DemoStreams so the player never hard-crashes.
+ * Any failure returns null -- the caller shows a real error, never a demo video.
  */
 object AniwavesApi {
 
-    // <-- Set to your deployed backend. No trailing slash. See AniwavesApi.kt todo.
+    // Your deployed backend. No trailing slash.
     private const val BASE = "https://aniwavesapis.onrender.com"
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -45,14 +52,15 @@ object AniwavesApi {
         }
     }
 
+    private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
+
     /** Search aniwaves by title, return the best-matching slug (or null). */
     fun resolveSlug(title: String): String? {
-        val q = title.trim().ifBlank { return null }
-        val txt = get("/api/search?q=${java.net.URLEncoder.encode(q, "UTF-8")}")
-        val root = json.parseToJsonElement(txt).jsonObject
+        val q = title.trim()
+        if (q.isBlank()) return null
+        val root: JsonObject = json.parseToJsonElement(get("/api/search?q=${enc(q)}")).jsonObject
         val results = root["results"]?.jsonArray ?: return null
         if (results.isEmpty()) return null
-        // Prefer an exact title match, else first result.
         val exact = results.firstOrNull {
             it.jsonObject["title"]?.jsonPrimitive?.content?.equals(q, true) == true
         } ?: results.first()
@@ -62,8 +70,7 @@ object AniwavesApi {
     /** Server ids available for an episode, with their display names. */
     fun servers(slug: String, episode: Int, type: String = "sub"): List<Pair<String, String>> {
         val epId = "$slug-ep-$episode"
-        val txt = get("/api/servers?episodeId=${java.net.URLEncoder.encode(epId, "UTF-8")}&type=$type")
-        val root = json.parseToJsonElement(txt).jsonObject
+        val root: JsonObject = json.parseToJsonElement(get("/api/servers?episodeId=${enc(epId)}&type=$type")).jsonObject
         val list = root["servers"]?.jsonArray ?: return emptyList()
         return list.mapNotNull { s ->
             val o = s.jsonObject
@@ -75,8 +82,7 @@ object AniwavesApi {
 
     /** Resolve a playable .m3u8 URL for a server id, or null. */
     fun streamUrl(serverId: String): String? {
-        val txt = get("/api/stream?serverId=${java.net.URLEncoder.encode(serverId, "UTF-8")}")
-        val root = json.parseToJsonElement(txt).jsonObject
+        val root: JsonObject = json.parseToJsonElement(get("/api/stream?serverId=${enc(serverId)}")).jsonObject
         // proxiedM3u8 is already CORS-safe (rewritten through /api/proxy).
         root["proxiedM3u8"]?.jsonPrimitive?.content?.let { return "$BASE$it" }
         // Fallback to raw m3u8 if proxy field missing.
@@ -86,7 +92,7 @@ object AniwavesApi {
     /**
      * Full resolution: title + episode -> first working .m3u8.
      * Preference order: Vidplay, then BYFMS/bymas, then any other server.
-     * Returns null if nothing resolves (caller falls back to DemoStreams).
+     * Returns null if nothing resolves (caller shows a real error, not a demo).
      */
     fun resolveStream(title: String, episode: Int, type: String = "sub"): String? {
         val slug = resolveSlug(title) ?: return null
