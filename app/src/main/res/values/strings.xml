@@ -32,7 +32,6 @@
     <string name="subtitles_off">Off</string>
     <string name="retry">Retry</string>
     <string name="close">Close</string>
-    <string name="demo_stream_notice">Public sample video for demo playback only.</string>
     <string name="playback_error_title">Playback hit a snag</string>
     <string name="playback_error_message">We couldn\'t play this episode right now. Check your connection and try again.</string>
 </resources>
