@@ -47,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,7 +59,6 @@ import com.aniwavestream.app.ui.components.AnimePosterCard
 import com.aniwavestream.app.ui.components.AnimeRankedCard
 import com.aniwavestream.app.ui.components.AnivaveScheduleCard
 import com.aniwavestream.app.ui.components.SecondaryPillButton
-import com.aniwavestream.app.ui.components.HeroBackdrop
 import com.aniwavestream.app.ui.theme.Background
 import com.aniwavestream.app.ui.theme.Bricolage
 import com.aniwavestream.app.ui.theme.Flame
@@ -164,28 +162,10 @@ fun SeeAllScreen(
             }
     }
 
-    val seeAllImages = remember(all) {
-        (all.mapNotNull { it.bannerUrl } + all.mapNotNull { it.posterUrl }).distinct().take(5)
-    }
-    val fallbackAnime = all.firstOrNull() ?: Anime(title = title)
-
-    Box(Modifier.fillMaxSize()) {
-        // Blurred crossfading backdrop (same treatment as the Detail screen).
-        HeroBackdrop(images = seeAllImages, fallback = fallbackAnime, modifier = Modifier.fillMaxSize())
-        // Dark scrim so posters stay readable over the art; fades to solid at the bottom.
-        Box(
-            Modifier.fillMaxSize().background(
-                Brush.verticalGradient(
-                    0.0f to Background.copy(alpha = 0.55f),
-                    0.5f to Background.copy(alpha = 0.8f),
-                    1.0f to Background
-                )
-            )
-        )
-        Scaffold(
-            containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0),
-            topBar = {
+    Scaffold(
+        containerColor = Background,
+        contentWindowInsets = WindowInsets(0),
+        topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
                 title = {
@@ -277,7 +257,6 @@ fun SeeAllScreen(
                 )
             }
         }
-    }
     }
 }
 
