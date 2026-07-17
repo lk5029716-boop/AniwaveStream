@@ -75,6 +75,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -83,6 +84,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
+import androidx.compose.runtime.derivedStateOf
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.DayAiring
 import com.aniwavestream.app.data.model.NewReleaseEpisode
@@ -1481,7 +1484,9 @@ fun KenBurnsImage(
     modifier: Modifier = Modifier
 ) {
     var cardSize by remember { mutableStateOf(IntSize.Zero) }
-    var imgSize by remember { mutableStateOf(IntSize.Zero) }
+    val painter = rememberAsyncImagePainter(model)
+    // Intrinsic image size is known only after the painter loads; derivedStateOf re-composes then.
+    val imgSize by derivedStateOf { painter.intrinsicSize.toIntSize() }
     val kb = rememberInfiniteTransition()
     // Zoom: subtle 1.05 -> 1.10 on its own clock.
     val scale by kb.animateFloat(
@@ -1502,10 +1507,9 @@ fun KenBurnsImage(
         animationSpec = infiniteRepeatable(tween(23000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
     )
     AsyncImage(
-        model = model,
+        model = painter,
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        onSuccess = { imgSize = it.result.painter.intrinsicSize.toIntSize() },
         modifier = modifier
             .onSizeChanged { cardSize = it }
             .graphicsLayer {
