@@ -1500,13 +1500,14 @@ fun HeroBackdrop(images: List<String>, fallback: Anime, modifier: Modifier = Mod
                     AsyncImage(
                         model = url,
                         contentDescription = null,
-                        contentScale = ContentScale.Fit,
+                        contentScale = ContentScale.Crop,
+                        alignment = Alignment.Center,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
                                 scaleX = scale
                                 scaleY = scale
-                                translationX = pan.dp.toPx()
+                                translationY = pan.dp.toPx()
                             }
                             .blur(2.dp)
                             .clipToBounds()
