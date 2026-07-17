@@ -41,7 +41,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -143,12 +142,10 @@ fun DetailScreen(
                 // (card) image only if the anime has no cover. (poster = card, banner = cover)
                 val bgUrl = a.bannerUrl ?: a.posterUrl
 
-                // Back button (overlay, top-left) — zIndex keeps it ABOVE the scrolling hero
-                // image so it never gets painted over.
+                // Back button (overlay, top-left)
                 IconButton(
                     onClick = onBack,
                     modifier = Modifier
-                        .zIndex(10f)
                         .align(Alignment.TopStart)
                         .padding(12.dp)
                         .clip(CircleShape)
@@ -170,27 +167,25 @@ fun DetailScreen(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(460.dp)
+                                        .height(320.dp)
                                         .blur(2.dp)
                                         .clipToBounds()
                                 )
                             } else {
-                                AnivaveArt(anime = a, modifier = Modifier.fillMaxWidth().height(460.dp).blur(2.dp).clipToBounds())
+                                AnivaveArt(anime = a, modifier = Modifier.fillMaxWidth().height(320.dp).blur(2.dp).clipToBounds())
                             }
-                            // Soft, GRADUAL fade: transparent over the poster/title/genres, then
-                            // gently darkening so the Play E1 / My List buttons sit on a soft
-                            // fade-out. Reaches solid Background by the Info box (everything below
-                            // stays untouched solid black).
+                            // Gradual soft fade of the backdrop into solid Background — no hard
+                            // edge. Reaches solid black right where the buttons begin.
                             Box(
                                 Modifier
                                     .fillMaxWidth()
-                                    .height(460.dp)
+                                    .height(200.dp)
                                     .align(Alignment.BottomCenter)
                                     .background(
                                         Brush.verticalGradient(
                                             0.0f to Color.Transparent,
-                                            0.55f to Color.Transparent,
-                                            0.78f to Background.copy(alpha = 0.55f),
+                                            0.35f to Background.copy(alpha = 0.35f),
+                                            0.7f to Background.copy(alpha = 0.8f),
                                             1.0f to Background
                                         )
                                     )
@@ -294,23 +289,22 @@ fun DetailScreen(
                                     }
                                 }
                             }
-                            Spacer(Modifier.height(16.dp))
-                            // Play E1 / My List sit ON the soft fade (still inside the hero).
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                PrimaryPillButton(text = "Play E1", leadingIcon = Icons.Default.PlayArrow, onClick = { onPlay(1) })
-                                SecondaryPillButton(
-                                    text = if (inList) "In List" else "My List",
-                                    leadingIcon = if (inList) Icons.Default.Check else Icons.Default.Add,
-                                    onClick = { scope.launch { library.toggleMyList(animeId) } }
-                                )
-                            }
                         }
                     }
 
-                    // ---- BELOW THE FADE: solid Background, never blurred ----
+                    // ---- BELOW GENRE ROW: solid Background, never blurred ----
                     item {
                         Column(Modifier.padding(horizontal = 16.dp)) {
-                            Spacer(Modifier.height(20.dp))
+                            Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            PrimaryPillButton(text = "Play E1", leadingIcon = Icons.Default.PlayArrow, onClick = { onPlay(1) })
+                            SecondaryPillButton(
+                                text = if (inList) "In List" else "My List",
+                                leadingIcon = if (inList) Icons.Default.Check else Icons.Default.Add,
+                                onClick = { scope.launch { library.toggleMyList(animeId) } }
+                            )
+                        }
+                        Spacer(Modifier.height(20.dp))
                         // Info grid (Source / Status / Episodes)
                         Row(
                             Modifier
