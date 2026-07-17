@@ -64,6 +64,8 @@ fun AnivaveArt(
                     model = anime.posterUrl,
                     contentDescription = anime.title,
                     contentScale = ContentScale.Crop,
+                    placeholder = androidx.compose.ui.graphics.ColorPainter(Color.Transparent),
+                    error = androidx.compose.ui.graphics.ColorPainter(Color.Transparent),
                     modifier = Modifier.fillMaxSize()
                 )
             }
