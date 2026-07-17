@@ -75,6 +75,7 @@ import com.aniwavestream.app.ui.components.EpisodeListShimmer
 import com.aniwavestream.app.ui.components.ErrorBox
 import com.aniwavestream.app.ui.components.PrimaryPillButton
 import com.aniwavestream.app.ui.components.SecondaryPillButton
+import com.aniwavestream.app.ui.components.HeroBackdrop
 import com.aniwavestream.app.ui.theme.AnivaveArt
 import com.aniwavestream.app.ui.theme.Background
 import com.aniwavestream.app.ui.theme.Bricolage
@@ -412,63 +413,5 @@ private fun InfoCell(label: String, value: String) {
         Text(label, color = TextMuted, fontFamily = PlexMono, fontSize = 10.sp, letterSpacing = 1.sp)
         Spacer(Modifier.height(4.dp))
         Text(value, color = TextPrimary, fontFamily = PlexMono, fontWeight = FontWeight.Medium, fontSize = 12.sp)
-    }
-}
-
-/**
- * Crossfading blurred backdrop carousel with a slow Ken Burns zoom/pan per image.
- * Sizes itself to its parent (the hero content) via Modifier.matchParentSize, so it fills
- * exactly the hero area and fades out behind the Play E1 / My List buttons — no overflow,
- * no black gap, and it never pushes layout around.
- */
-@Composable
-private fun HeroBackdrop(images: List<String>, fallback: Anime, modifier: Modifier = Modifier) {
-    val list = if (images.isNotEmpty()) images else listOf(fallback.posterUrl ?: "")
-    if (list.isEmpty() || list.first().isEmpty()) {
-        AnivaveArt(anime = fallback, modifier = modifier.blur(2.dp).clipToBounds())
-        return
-    }
-    var index by remember { mutableStateOf(0) }
-    LaunchedEffect(list) {
-        while (true) {
-            delay(4500L)
-            index = (index + 1) % list.size
-        }
-    }
-    Box(modifier.clipToBounds()) {
-        list.forEachIndexed { i, url ->
-            val visible = i == index
-            val kb = rememberInfiniteTransition()
-            val scale by kb.animateFloat(
-                initialValue = 1.08f, targetValue = 1.16f,
-                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
-            )
-            val pan by kb.animateFloat(
-                initialValue = -12f, targetValue = 12f,
-                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
-            )
-            Crossfade(
-                targetState = visible,
-                animationSpec = tween(900),
-                modifier = Modifier.fillMaxSize()
-            ) { show ->
-                if (show) {
-                    AsyncImage(
-                        model = url,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                                translationX = pan.dp.toPx()
-                            }
-                            .blur(2.dp)
-                            .clipToBounds()
-                    )
-                }
-            }
-        }
     }
 }
