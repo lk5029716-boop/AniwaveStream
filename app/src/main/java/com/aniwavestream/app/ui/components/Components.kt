@@ -68,6 +68,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
@@ -1512,6 +1513,8 @@ fun KenBurnsImage(
         model = painter,
         contentDescription = null,
         contentScale = ContentScale.Crop,
+        placeholder = ColorPainter(Color.Transparent),
+        error = ColorPainter(Color.Transparent),
         modifier = modifier
             .onSizeChanged { cardSize = it }
             .graphicsLayer {
