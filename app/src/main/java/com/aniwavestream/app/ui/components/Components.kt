@@ -831,7 +831,6 @@ fun AnivaveHeroSlider(
         // Swipeable pages
         androidx.compose.foundation.pager.HorizontalPager(
             state = pagerState,
-            beyondBoundsPageCount = 1,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             val anime = items[page]
