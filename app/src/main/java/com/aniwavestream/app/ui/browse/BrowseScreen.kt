@@ -19,6 +19,11 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -56,7 +61,19 @@ import com.aniwavestream.app.ui.theme.Void
 /** Top-level filter modes for the Browse hub. */
 private enum class BrowseMode { GENRE, LETTER, YEAR }
 
-private val ALPHA_KEYS = listOf("All", "0-9") + ('A'..'Z').map { it.toString() }
+private val LETTER_RANGES = listOf(
+    "ALL",
+    "A–E", "F–J", "K–O", "P–T", "U–Z"
+)
+private fun rangeLetters(range: String): List<String> = when (range) {
+    "ALL" -> emptyList()
+    "A–E" -> ('A'..'E').map { it.toString() }
+    "F–J" -> ('F'..'J').map { it.toString() }
+    "K–O" -> ('K'..'O').map { it.toString() }
+    "P–T" -> ('P'..'T').map { it.toString() }
+    "U–Z" -> ('U'..'Z').map { it.toString() }
+    else -> emptyList()
+}
 private val YEARS = (2006..2026).toList().reversed()
 
 @Composable
@@ -67,6 +84,8 @@ fun BrowseScreen(
     // Filter selection state.
     var mode by remember { mutableStateOf(BrowseMode.GENRE) }
     var selectedGenre by remember { mutableIntStateOf(BrowseGenres.first().id) }
+    // Two-step All-Anime selector: a range ("ALL" / "A–E" ...), then a single letter.
+    var selectedRange by remember { mutableStateOf<String?>(null) }
     var selectedLetter by remember { mutableStateOf<String?>(null) }
     var selectedYear by remember { mutableStateOf<Int?>(null) }
 
@@ -75,7 +94,7 @@ fun BrowseScreen(
     var items by remember { mutableStateOf<List<Anime>>(emptyList()) }
 
     // (Re)load whenever the active filter changes.
-    LaunchedEffect(mode, selectedGenre, selectedLetter, selectedYear) {
+    LaunchedEffect(mode, selectedGenre, selectedRange, selectedLetter, selectedYear) {
         loading = true
         error = null
         val result = when (mode) {
@@ -114,7 +133,10 @@ fun BrowseScreen(
                 selected = mode == BrowseMode.LETTER,
                 onClick = {
                     mode = BrowseMode.LETTER
-                    if (selectedLetter == null) selectedLetter = "All"
+                    if (selectedRange == null) {
+                        selectedRange = "ALL"
+                        selectedLetter = "All"
+                    }
                 }
             )
             BrowseTopBox(
@@ -140,9 +162,14 @@ fun BrowseScreen(
                 selectedGenre = selectedGenre,
                 onSelect = { selectedGenre = it }
             )
-            BrowseMode.LETTER -> LetterGrid(
-                selected = selectedLetter,
-                onSelect = { selectedLetter = it }
+            BrowseMode.LETTER -> LetterRangeSelector(
+                selectedRange = selectedRange,
+                selectedLetter = selectedLetter,
+                onRange = { range ->
+                    selectedRange = range
+                    if (range == "ALL") selectedLetter = "All" else selectedLetter = null
+                },
+                onLetter = { selectedLetter = it }
             )
             BrowseMode.YEAR -> YearGrid(
                 selected = selectedYear,
@@ -240,34 +267,71 @@ private fun GenreChips(selectedGenre: Int, onSelect: (Int) -> Unit) {
 }
 
 @Composable
-private fun LetterGrid(selected: String?, onSelect: (String) -> Unit) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(6),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(180.dp)
-    ) {
-        items(ALPHA_KEYS, key = { it }) { key ->
-            val isSel = key == selected
-            Box(
-                Modifier
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (isSel) Flame else SurfaceRaised)
-                    .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(10.dp))
-                    .clickable { onSelect(key) },
-                contentAlignment = Alignment.Center
+private fun LetterRangeSelector(
+    selectedRange: String?,
+    selectedLetter: String?,
+    onRange: (String) -> Unit,
+    onLetter: (String) -> Unit
+) {
+    Column(Modifier.fillMaxWidth()) {
+        // Step 1 — range segments. Only one active at a time.
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(LETTER_RANGES) { range ->
+                val isSel = range == selectedRange
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSel) Flame else SurfaceRaised)
+                        .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(10.dp))
+                        .clickable { onRange(range) }
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        range,
+                        color = if (isSel) Void else TextPrimary,
+                        fontFamily = Bricolage,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+
+        // Step 2 — letters for the chosen range, animated in.
+        AnimatedVisibility(
+            visible = selectedRange != null && selectedRange != "ALL",
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
+        ) {
+            val letters = rangeLetters(selectedRange ?: "")
+            LazyRow(
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    key,
-                    color = if (isSel) Void else TextPrimary,
-                    fontFamily = Bricolage,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
+                items(letters) { ch ->
+                    val isSel = ch == selectedLetter
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (isSel) Flame else SurfaceRaised)
+                            .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(20.dp))
+                            .clickable { onLetter(ch) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            ch,
+                            color = if (isSel) Void else TextPrimary,
+                            fontFamily = Bricolage,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+                }
             }
         }
     }
