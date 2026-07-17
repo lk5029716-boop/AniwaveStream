@@ -9,7 +9,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -68,16 +67,12 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -85,7 +80,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import coil.compose.rememberAsyncImagePainter
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.DayAiring
 import com.aniwavestream.app.data.model.NewReleaseEpisode
@@ -1147,16 +1141,39 @@ fun AnivaveUpcomingCard(
 ) {
     var alertOn by remember { mutableStateOf(false) }
     // Blurred art backdrop behind the card (home "Upcoming Anime" row only).
-    // Cinematic Ken-Burns: minimal zoom + full vertical sweep computed from the real image.
+    // Light blur + slow Ken-Burns pan so a long cover drifts and reveals every part.
+    val kb = rememberInfiniteTransition()
+    val kbScale by kb.animateFloat(
+        initialValue = 1f, targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(tween(11000, easing = LinearEasing), RepeatMode.Reverse)
+    )
+    val kbX by kb.animateFloat(
+        initialValue = -8f, targetValue = 8f,
+        animationSpec = infiniteRepeatable(tween(11000, easing = LinearEasing), RepeatMode.Reverse)
+    )
+    val kbY by kb.animateFloat(
+        initialValue = -6f, targetValue = 6f,
+        animationSpec = infiniteRepeatable(tween(11000, easing = LinearEasing), RepeatMode.Reverse)
+    )
     Box(
         modifier
             .width(280.dp)
             .clip(RoundedCornerShape(18.dp))
     ) {
-        KenBurnsImage(
+        AsyncImage(
             model = anime.bannerUrl ?: anime.posterUrl,
-            blurDp = 0.6.dp,
-            modifier = Modifier.matchParentSize()
+            contentDescription = anime.title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .matchParentSize()
+                .graphicsLayer {
+                    scaleX = kbScale
+                    scaleY = kbScale
+                    translationX = kbX.dp.toPx()
+                    translationY = kbY.dp.toPx()
+                }
+                .blur(0.6.dp)
+                .clipToBounds()
         )
         Row(
             modifier
@@ -1466,64 +1483,4 @@ fun ScheduleRow(
         }
         Text("●", color = Cool, fontSize = 10.sp, fontFamily = PlexMono)
     }
-}
-
-/**
- * Cinematic Ken-Burns backdrop image.
- * - Zoom ~1.05x (minimal crop, fills width).
- * - Vertical pan range computed from the ACTUAL image height vs the card, so it always
- *   sweeps face -> full body/scene regardless of poster dimensions (fixes "stuck on face").
- * - Subtle horizontal pan +/-10dp.
- * - All eased (FastOutSlowInEasing) with slightly staggered durations so the loop never
- *   feels repetitive.
- */
-@Composable
-fun KenBurnsImage(
-    model: Any?,
-    blurDp: Dp,
-    modifier: Modifier = Modifier
-) {
-    var cardSize by remember { mutableStateOf(IntSize.Zero) }
-    val painter = rememberAsyncImagePainter(model)
-    // Intrinsic image size is known only after the painter loads.
-    val intrinsic: IntSize = painter.intrinsicSize.let { s -> IntSize(s.width.toInt(), s.height.toInt()) }
-    var imgSize by remember { mutableStateOf(IntSize.Zero) }
-    // Re-read once the painter resolves.
-    androidx.compose.runtime.LaunchedEffect(intrinsic) { if (intrinsic != IntSize.Zero) imgSize = intrinsic }
-    val kb = rememberInfiniteTransition()
-    // Zoom: subtle 1.05 -> 1.10 on its own clock.
-    val scale by kb.animateFloat(
-        initialValue = 1.05f, targetValue = 1.10f,
-        animationSpec = infiniteRepeatable(tween(21000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
-    )
-    // Horizontal pan: subtle +/-10dp on its own clock.
-    val panX by kb.animateFloat(
-        initialValue = -10f, targetValue = 10f,
-        animationSpec = infiniteRepeatable(tween(20000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
-    )
-    // Vertical pan: full range from actual image, computed each frame.
-    val ratio = if (imgSize.width > 0) imgSize.height.toFloat() / imgSize.width else (2f / 3f)
-    val scaledH = cardSize.width * ratio * scale
-    val spanPx = ((scaledH - cardSize.height) / 2f).coerceAtLeast(0f)
-    val panY by kb.animateFloat(
-        initialValue = -spanPx, targetValue = spanPx,
-        animationSpec = infiniteRepeatable(tween(23000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
-    )
-    AsyncImage(
-        model = painter,
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        placeholder = ColorPainter(Color.Transparent),
-        error = ColorPainter(Color.Transparent),
-        modifier = modifier
-            .onSizeChanged { cardSize = it }
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                translationX = panX.dp.toPx()
-                translationY = panY
-            }
-            .blur(blurDp)
-            .clipToBounds()
-    )
 }

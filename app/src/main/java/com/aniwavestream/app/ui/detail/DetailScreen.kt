@@ -59,7 +59,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
 import kotlinx.coroutines.delay
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
@@ -76,7 +75,6 @@ import com.aniwavestream.app.ui.components.EpisodeListShimmer
 import com.aniwavestream.app.ui.components.ErrorBox
 import com.aniwavestream.app.ui.components.PrimaryPillButton
 import com.aniwavestream.app.ui.components.SecondaryPillButton
-import com.aniwavestream.app.ui.components.KenBurnsImage
 import com.aniwavestream.app.ui.theme.AnivaveArt
 import com.aniwavestream.app.ui.theme.Background
 import com.aniwavestream.app.ui.theme.Bricolage
@@ -437,41 +435,40 @@ private fun HeroBackdrop(images: List<String>, fallback: Anime, modifier: Modifi
             index = (index + 1) % list.size
         }
     }
-    // Scrim breathing: bottom gradient opacity oscillates 0.7 -> 0.85 synced to the zoom cycle (18s),
-    // so text contrast stays strong at every zoom level.
-    val kbScrim = rememberInfiniteTransition()
-    val scrimAlpha by kbScrim.animateFloat(
-        initialValue = 0.7f, targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(tween(18000, easing = FastOutSlowInEasing), RepeatMode.Reverse)
-    )
     Box(modifier.clipToBounds()) {
         list.forEachIndexed { i, url ->
             val visible = i == index
+            val kb = rememberInfiniteTransition()
+            val scale by kb.animateFloat(
+                initialValue = 1.08f, targetValue = 1.16f,
+                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
+            )
+            val pan by kb.animateFloat(
+                initialValue = -12f, targetValue = 12f,
+                animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse)
+            )
             Crossfade(
                 targetState = visible,
                 animationSpec = tween(900),
                 modifier = Modifier.fillMaxSize()
             ) { show ->
                 if (show) {
-                    KenBurnsImage(
+                    AsyncImage(
                         model = url,
-                        blurDp = 2.dp,
-                        modifier = Modifier.fillMaxSize()
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                translationX = pan.dp.toPx()
+                            }
+                            .blur(2.dp)
+                            .clipToBounds()
                     )
                 }
             }
         }
-        // Breathing bottom scrim for legibility.
-        Box(
-            Modifier
-                .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = scrimAlpha)),
-                        startY = 0f,
-                        endY = Float.POSITIVE_INFINITY
-                    )
-                )
-        )
     }
 }
