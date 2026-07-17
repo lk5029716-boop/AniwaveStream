@@ -138,7 +138,9 @@ fun DetailScreen(
                 // Blurred backdrop is confined to a SINGLE hero block that ends exactly at the
                 // genre row. Below the genre tags everything is solid Background (Play E1, Info
                 // grid, Synopsis) — never blurred. No fixed band, no black gap above the poster.
-                val bgUrl = a.posterUrl ?: a.bannerUrl
+                // Backdrop image priority: wide COVER/banner first; fall back to the poster
+                // (card) image only if the anime has no cover. (poster = card, banner = cover)
+                val bgUrl = a.bannerUrl ?: a.posterUrl
 
                 // Back button (overlay, top-left)
                 IconButton(
