@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.aniwavestream.app.data.model.Anime
@@ -64,8 +65,8 @@ fun AnivaveArt(
                     model = anime.posterUrl,
                     contentDescription = anime.title,
                     contentScale = ContentScale.Crop,
-                    placeholder = androidx.compose.ui.graphics.ColorPainter(Color.Transparent),
-                    error = androidx.compose.ui.graphics.ColorPainter(Color.Transparent),
+                    placeholder = ColorPainter(Color.Transparent),
+                    error = ColorPainter(Color.Transparent),
                     modifier = Modifier.fillMaxSize()
                 )
             }
