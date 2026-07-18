@@ -13,8 +13,11 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 
 /**
  * Phase 3 — Video streaming engine.
@@ -25,8 +28,8 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
  *  - Rule 9b: a single process-wide [SimpleCache] with LRU eviction, wired into a
  *    [CacheDataSource.Factory] so rewinding/pausing reads from disk instead of
  *    re-fetching from the network.
- *  - Rule 12: Widevine DRM readiness via [MediaItem.DrmConfiguration] — see
- *    [buildMediaItem].
+ *  - FFmpeg software decoder extension (nextlib) for dual-audio / extra subtitle
+ *    codecs the built-in decoders can't handle (Dantotsu-style).
  */
 object PlayerModule {
 
@@ -85,13 +88,19 @@ object PlayerModule {
 
     /**
      * Build an ExoPlayer wired with the tuned load control + cache-backed media
-     * source factory. ABR track selection is handled by the default
-     * [androidx.media3.exoplayer.trackselection.DefaultTrackSelector], which the
-     * caller can further constrain via TrackSelectionParameters (Rule 10).
+     * source factory. Uses the FFmpeg extension renderer (nextlib) so japanese/eng
+     * DUB (dual audio) and extra subtitle codecs play, plus an explicit
+     * [DefaultTrackSelector] so the UI can pick audio/subtitle tracks.
      */
     fun buildPlayer(context: Context): ExoPlayer {
-        val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory(context))
-        return ExoPlayer.Builder(context.applicationContext)
+        val appContext = context.applicationContext
+        val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory(appContext))
+        val renderersFactory = NextRenderersFactory(appContext)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+        val trackSelector = DefaultTrackSelector(appContext)
+        return ExoPlayer.Builder(appContext)
+            .setRenderersFactory(renderersFactory)
+            .setTrackSelector(trackSelector)
             .setLoadControl(loadControl())
             .setMediaSourceFactory(mediaSourceFactory)
             .setSeekBackIncrementMs(10_000)
