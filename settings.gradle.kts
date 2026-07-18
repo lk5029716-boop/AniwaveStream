@@ -3,7 +3,5 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // nextlib (FFmpeg extension for dual audio / extra subtitle codecs)
-        maven("https://jitpack.io")
     }
 }
