@@ -112,11 +112,6 @@ data class ContinueItem(
     val progressFraction: Float
 )
 
-    val studio: String get() = studios.firstOrNull() ?: ""
-
-    val studioName: String get() = studios.firstOrNull() ?: ""
-}
-
 data class GenreChip(val id: Int, val name: String)
 
 val BrowseGenres = listOf(
