@@ -22,6 +22,8 @@
     <string name="back">Back</string>
     <string name="previous_episode">Previous episode</string>
     <string name="next_episode">Next episode</string>
+    <string name="previous">Previous</string>
+    <string name="next">Next</string>
     <string name="episode_label">Episode %1$d</string>
     <string name="loading">Loading…</string>
     <string name="enter_fullscreen">Enter full screen</string>
@@ -30,6 +32,17 @@
     <string name="audio_tracks">Audio</string>
     <string name="subtitles">Subtitles</string>
     <string name="subtitles_off">Off</string>
+    <string name="server">Server</string>
+    <string name="switch_server">Switch Server</string>
+    <string name="no_servers">No alternative servers for this episode</string>
+    <string name="playback_speed">Playback Speed</string>
+    <string name="picture_in_picture">Picture in Picture</string>
+    <string name="lock_controls">Lock controls</string>
+    <string name="sub_type">SUB</string>
+    <string name="dub_type">DUB</string>
+    <string name="skip_intro">Skip Intro</string>
+    <string name="brightness">Brightness</string>
+    <string name="volume">Volume</string>
     <string name="retry">Retry</string>
     <string name="close">Close</string>
     <string name="playback_error_title">Playback hit a snag</string>
