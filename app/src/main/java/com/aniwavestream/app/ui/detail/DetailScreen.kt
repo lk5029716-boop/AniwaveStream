@@ -45,8 +45,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.aniwavestream.app.data.model.Anime
-import com.aniwavestream.app.data.model.DemoStreams
-import com.aniwavestream.app.data.model.Episode
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.repository.UserLibraryStore
 import com.aniwavestream.app.ui.components.ErrorBox
@@ -71,7 +69,6 @@ fun DetailScreen(
     onRelated: (Int) -> Unit
 ) {
     var anime by remember { mutableStateOf<Anime?>(null) }
-    var episodes by remember { mutableStateOf<List<Episode>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     val myList by library.myListIds.collectAsState(initial = emptySet())
@@ -83,7 +80,6 @@ fun DetailScreen(
         repository.detail(animeId)
             .onSuccess {
                 anime = it
-                episodes = DemoStreams.buildEpisodes(it)
                 loading = false
             }
             .onFailure {
@@ -172,7 +168,7 @@ fun DetailScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "Demo notice: episode streams are public sample videos, not licensed anime.",
+                            "Streams resolved live from Aniwaves — pick an episode to play.",
                             color = TextMuted,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -181,8 +177,9 @@ fun DetailScreen(
                         Spacer(Modifier.height(8.dp))
                     }
                 }
-                items(episodes, key = { it.number }) { ep ->
-                    EpisodeRow(ep) { onPlay(ep.number) }
+                val epCount = (a.episodes ?: 12).coerceIn(1, 24)
+                items(epCount, key = { it }) { n ->
+                    EpisodeRow(number = n) { onPlay(n) }
                 }
                 item { Spacer(Modifier.height(32.dp)) }
             }
@@ -191,7 +188,7 @@ fun DetailScreen(
 }
 
 @Composable
-private fun EpisodeRow(ep: Episode, onClick: () -> Unit) {
+private fun EpisodeRow(number: Int, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -213,9 +210,8 @@ private fun EpisodeRow(ep: Episode, onClick: () -> Unit) {
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(ep.title, color = TextPrimary, style = MaterialTheme.typography.titleMedium)
-            Text(ep.durationLabel, color = TextMuted, style = MaterialTheme.typography.bodySmall)
+            Text("Episode $number", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
         }
-        Text("E${ep.number}", color = OrangePrimary, style = MaterialTheme.typography.labelLarge)
+        Text("E$number", color = OrangePrimary, style = MaterialTheme.typography.labelLarge)
     }
 }

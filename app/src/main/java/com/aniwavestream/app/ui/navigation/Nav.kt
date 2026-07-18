@@ -195,6 +195,7 @@ fun AniwaveNavHost(
                 PlayerScreen(
                     animeId = id,
                     episode = ep,
+                    title = repository.cached(id)?.title ?: "",
                     repository = repository,
                     library = library,
                     onBack = { nav.popBackStack() },

@@ -4,6 +4,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,13 +33,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import com.aniwavestream.app.data.model.DemoStreams
+import com.aniwavestream.app.data.api.AniwavesResolver
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.repository.UserLibraryStore
 import com.aniwavestream.app.ui.theme.Background
@@ -53,25 +55,48 @@ import kotlinx.coroutines.launch
 fun PlayerScreen(
     animeId: Int,
     episode: Int,
+    // Resolved display title. Passed from DetailScreen so the player does not
+    // depend on a successful metadata fetch to show something.
+    title: String = "",
     repository: AnimeRepository,
     library: UserLibraryStore,
     onBack: () -> Unit,
     onEpisodeChange: (Int) -> Unit
 ) {
     val context = LocalContext.current
-    var title by remember { mutableStateOf("Loading…") }
+    var displayTitle by remember { mutableStateOf(title) }
     var maxEp by remember { mutableStateOf(12) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(animeId) {
-        repository.detail(animeId).onSuccess {
-            title = it.title
-            maxEp = (it.episodes ?: 12).coerceIn(1, 24)
+    var streamState by remember(animeId, episode) {
+        mutableStateOf<StreamState>(StreamState.Loading)
+    }
+
+    // Resolve the real stream URL from the backend (no demo fallback).
+    LaunchedEffect(animeId, episode) {
+        streamState = StreamState.Loading
+        val resolver = AniwavesResolver()
+        // Get a title to search the backend with: prefer the one we were given,
+        // then the repo cache, then a detail fetch. (Backend keys by slug, not mal_id.)
+        val titleToUse = displayTitle.takeIf { it.isNotBlank() }
+            ?: repository.cached(animeId)?.title
+            ?: repository.detail(animeId).getOrNull()?.title
+            ?: ""
+        runCatching {
+            resolver.resolve(animeId, titleToUse, episode)
+        }.onSuccess { url ->
+            streamState = StreamState.Ready(url)
+        }.onFailure { t ->
+            streamState = StreamState.Error(t.message ?: "Failed to load stream")
         }
     }
 
-    val streamUrl = remember(animeId, episode) {
-        DemoStreams.forEpisode(animeId, episode)
+    // Metadata (title + episode count) — best-effort, does not block playback.
+    LaunchedEffect(animeId) {
+        repository.detail(animeId).onSuccess {
+            if (displayTitle.isBlank()) displayTitle = it.title
+            maxEp = (it.episodes ?: 12).coerceIn(1, 24)
+        }
     }
 
     val exoPlayer = remember {
@@ -81,10 +106,12 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(streamUrl) {
-        exoPlayer.setMediaItem(MediaItem.fromUri(streamUrl))
-        exoPlayer.prepare()
-        exoPlayer.play()
+    LaunchedEffect(streamState) {
+        if (streamState is StreamState.Ready) {
+            exoPlayer.setMediaItem(MediaItem.fromUri((streamState as StreamState.Ready).url))
+            exoPlayer.prepare()
+            exoPlayer.play()
+        }
     }
 
     // Persist rough progress while watching
@@ -130,8 +157,20 @@ fun PlayerScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
             }
             Column(Modifier.weight(1f)) {
-                Text(title, color = TextPrimary, maxLines = 1)
-                Text("Episode $episode  ·  Demo stream", color = TextSecondary)
+                Text(
+                    displayTitle.ifBlank { "Episode $episode" },
+                    color = TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    when (streamState) {
+                        is StreamState.Loading -> "Resolving stream…"
+                        is StreamState.Error -> "Stream unavailable"
+                        is StreamState.Ready -> "Episode $episode"
+                    },
+                    color = TextSecondary
+                )
             }
             IconButton(
                 onClick = { if (episode > 1) onEpisodeChange(episode - 1) },
@@ -165,6 +204,37 @@ fun PlayerScreen(
                 },
                 modifier = Modifier.fillMaxSize()
             )
+
+            if (streamState is StreamState.Loading) {
+                Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Loading stream…", color = TextSecondary)
+                }
+            }
+
+            if (streamState is StreamState.Error) {
+                Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Text(
+                            "Couldn't load this episode.",
+                            color = TextPrimary
+                        )
+                        Text(
+                            (streamState as StreamState.Error).message,
+                            color = TextSecondary
+                        )
+                    }
+                }
+            }
         }
 
         Row(
@@ -175,16 +245,23 @@ fun PlayerScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Public sample video for demo playback only.",
+                "Streamed via Aniwaves",
                 color = TextSecondary,
                 modifier = Modifier.weight(1f)
             )
             Spacer(Modifier.width(8.dp))
-            TextButton(onClick = {
-                if (episode < maxEp) onEpisodeChange(episode + 1)
-            }) {
+            TextButton(
+                onClick = { if (episode < maxEp) onEpisodeChange(episode + 1) },
+                enabled = episode < maxEp
+            ) {
                 Text("Next episode", color = OrangePrimary)
             }
         }
     }
+}
+
+private sealed interface StreamState {
+    data object Loading : StreamState
+    data class Ready(val url: String) : StreamState
+    data class Error(val message: String) : StreamState
 }

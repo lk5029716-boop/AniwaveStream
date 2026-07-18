@@ -106,44 +106,15 @@ fun AnimeDto.toAnime() = Anime(
     studios = studios.map { it.name }
 )
 
-data class Episode(
-    val number: Int,
-    val title: String,
-    val durationLabel: String,
-    /** Public demo stream (not licensed anime content). */
-    val streamUrl: String
-)
-
 data class ContinueItem(
     val anime: Anime,
     val episode: Int,
     val progressFraction: Float
 )
 
-object DemoStreams {
-    // Public Big Buck Bunny / open sample media for player demos only.
-    private val samples = listOf(
-        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
-    )
+    val studio: String get() = studios.firstOrNull() ?: ""
 
-    fun forEpisode(animeId: Int, episode: Int): String =
-        samples[(animeId + episode) % samples.size]
-
-    fun buildEpisodes(anime: Anime): List<Episode> {
-        val count = (anime.episodes ?: 12).coerceIn(1, 24)
-        return (1..count).map { n ->
-            Episode(
-                number = n,
-                title = "Episode $n",
-                durationLabel = "24m",
-                streamUrl = forEpisode(anime.id, n)
-            )
-        }
-    }
+    val studioName: String get() = studios.firstOrNull() ?: ""
 }
 
 data class GenreChip(val id: Int, val name: String)
