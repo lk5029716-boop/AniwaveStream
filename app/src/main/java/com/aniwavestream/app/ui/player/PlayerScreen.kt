@@ -74,6 +74,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
@@ -111,6 +112,11 @@ fun PlayerScreen(
     var streamUrl by remember(animeId, episode) { mutableStateOf<String?>(null) }
     var resolveError by remember(animeId, episode) { mutableStateOf(false) }
     var reloadKey by remember { mutableStateOf(0) }
+    // Human-readable reason for the last failure, so the error overlay shows
+    // WHAT actually broke (resolve vs playback) instead of a generic message.
+    var errorDetail by remember(animeId, episode) { mutableStateOf<String?>(null) }
+    // Bumped on Retry to re-trigger the load effect even if streamUrl is unchanged.
+    var loadKey by remember { mutableStateOf(0) }
 
     LaunchedEffect(animeId) {
         repository.detail(animeId)
@@ -133,12 +139,20 @@ fun PlayerScreen(
     LaunchedEffect(animeId, episode, title, reloadKey) {
         if (title.isBlank()) return@LaunchedEffect
         resolveError = false
-        val resolved = withContext(Dispatchers.IO) {
-            runCatching { AniwavesApi.warmUp() }              // wake free-tier backend
-            runCatching { AniwavesApi.resolveStream(title, episode) }.getOrNull()
+        errorDetail = null
+        val result = withContext(Dispatchers.IO) {
+            // Capture any exception so we know WHY resolution failed.
+            runCatching { AniwavesApi.resolveStream(title, episode) }
         }
-        if (!resolved.isNullOrBlank()) { streamUrl = resolved; resolveError = false }
-        else { streamUrl = null; resolveError = true }
+        if (result.isSuccess && !result.getOrNull().isNullOrBlank()) {
+            streamUrl = result.getOrNull()
+            resolveError = false
+        } else {
+            streamUrl = null
+            resolveError = true
+            errorDetail = result.exceptionOrNull()?.message
+                ?: "Backend returned no stream for \"$title\" ep $episode"
+        }
     }
 
     // All player mutations are guarded: if the player was released by a
@@ -151,23 +165,43 @@ fun PlayerScreen(
     // ExoPlayer load with automatic retry+backoff. A cold backend (Render free
     // tier) can take >30s to wake; the first prepare() may snag. Retrying a few
     // times with delay lets it self-heal instead of showing a permanent error.
-    LaunchedEffect(streamUrl) {
+    LaunchedEffect(streamUrl, loadKey) {
         val url = streamUrl ?: return@LaunchedEffect
         vm.clearError()
+        errorDetail = null
         var attempt = 0
         val maxAttempts = 3
-        while (attempt < maxAttempts) {
+        var ok = false
+        while (attempt < maxAttempts && !ok) {
             attempt++
-            val ok = runCatching {
+            // Kick off the load (setMediaItem + prepare + play).
+            runCatching {
                 safePlayer {
                     setMediaItem(PlayerModule.buildMediaItem(url))
                     prepare()
                     play()
                 }
-            }.isSuccess
-            // If ExoPlayer reports an error this soon, wait and retry.
-            if (vm.error.value == null) break
-            if (attempt < maxAttempts) kotlinx.coroutines.delay(2500L * attempt)
+            }
+            // Give ExoPlayer a real chance to fetch + parse the HLS playlist.
+            // It loads asynchronously, so we observe state for up to ~25s per
+            // attempt rather than checking vm.error immediately after prepare()
+            // (which is always null at that instant -> old code broke on attempt 1).
+            val deadline = System.currentTimeMillis() + 25_000L
+            while (System.currentTimeMillis() < deadline) {
+                val p = exoPlayer
+                if (p.playbackState == androidx.media3.common.Player.STATE_READY) { ok = true; break }
+                if (vm.error.value != null) break          // real playback error
+                kotlinx.coroutines.delay(500)
+            }
+            if (!ok && vm.error.value == null) {
+                // Timed out with no explicit error (e.g. cold backend still waking).
+                kotlinx.coroutines.delay(2500L * attempt)
+            }
+        }
+        if (!ok) {
+            resolveError = true
+            errorDetail = vm.error.value?.message
+                ?: "ExoPlayer couldn't load the stream (timed out after $maxAttempts attempts)"
         }
     }
 
@@ -332,19 +366,14 @@ fun PlayerScreen(
 
             if (playbackError != null || resolveError) {
                 PlaybackErrorOverlay(
+                    detail = errorDetail,
                     onRetry = {
                         vm.clearError()
-                        if (streamUrl != null) {
-                            safePlayer {
-                                setMediaItem(PlayerModule.buildMediaItem(streamUrl!!))
-                                prepare()
-                                play()
-                            }
-                        } else {
-                            // resolution had failed: re-run the resolve LaunchedEffect
-                            resolveError = false
-                            reloadKey++
-                        }
+                        resolveError = false
+                        errorDetail = null
+                        // Re-run both load + resolve effects by bumping their keys.
+                        loadKey++
+                        reloadKey++
                     }
                 )
             }
@@ -384,7 +413,10 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun PlaybackErrorOverlay(onRetry: () -> Unit) {
+private fun PlaybackErrorOverlay(
+    detail: String? = null,
+    onRetry: () -> Unit
+) {
     Column(
         Modifier
             .fillMaxSize()
@@ -405,6 +437,15 @@ private fun PlaybackErrorOverlay(onRetry: () -> Unit) {
             color = TextSecondary,
             style = MaterialTheme.typography.bodyMedium
         )
+        // Show the ACTUAL failure reason so we stop guessing blind.
+        if (!detail.isNullOrBlank()) {
+            Spacer(Modifier.width(12.dp))
+            Text(
+                detail,
+                color = TextSecondary,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
         Spacer(Modifier.width(16.dp))
         Box(
             Modifier
