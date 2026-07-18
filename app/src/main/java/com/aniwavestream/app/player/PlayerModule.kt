@@ -5,6 +5,7 @@ package com.aniwavestream.app.player
 import android.content.Context
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -99,17 +100,24 @@ object PlayerModule {
     }
 
     /**
-     * Rule 12 — DRM foundation. When [drmLicenseUrl] is provided the item is
-     * configured for Widevine modular DRM; otherwise it plays clear (demo) media.
-     * Real licensed catalogs supply a signed license URL + (optionally) auth
-     * headers here to prevent ripping / unauthorized forwarding.
+     * Build a [MediaItem] for a stream URL resolved from the Aniwaves backend.
+     *
+     * PLAYBACK ROOT CAUSE FIX: the backend returns URLs of the form
+     * `.../api/proxy?url=<cdn>...m3u8...` whose last path segment is `proxy`,
+     * NOT a `.m3u8` file. ExoPlayer normally chooses the media-source type by
+     * sniffing the URI extension (Util.inferContentType) BEFORE fetching the
+     * playlist. With no `.m3u8` extension it infers CONTENT_TYPE_OTHER and throws
+     * "Unsupported type" — so the video never plays ("it's not a video player").
+     * Declaring the MIME type explicitly forces the HlsMediaSource to be used.
      */
     fun buildMediaItem(
         streamUrl: String,
         drmLicenseUrl: String? = null,
         drmHeaders: Map<String, String> = emptyMap()
     ): MediaItem {
-        val builder = MediaItem.Builder().setUri(streamUrl)
+        val builder = MediaItem.Builder()
+            .setUri(streamUrl)
+            .setMimeType(MimeTypes.APPLICATION_M3U8)
         if (!drmLicenseUrl.isNullOrBlank()) {
             builder.setDrmConfiguration(
                 MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID)
