@@ -36,8 +36,6 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-dash:1.5.1")
     implementation("androidx.media3:media3-datasource:1.5.1")
     implementation("androidx.media3:media3-database:1.5.1")
-    // FFmpeg software decoder extension (nextlib) — enables dual-audio / extra subtitle codecs
-    implementation("io.github.anilbeesetti.nextlib:nextlib-media3ext:0.7.1")
 
     // Preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")
