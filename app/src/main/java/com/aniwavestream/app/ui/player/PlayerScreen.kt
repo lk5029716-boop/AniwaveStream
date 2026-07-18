@@ -104,8 +104,9 @@ fun PlayerScreen(
     // placeholder (which would never match a backend slug and always fail).
     var title by remember { mutableStateOf("") }
     var maxEp by remember { mutableStateOf(12) }
-    // Survives rotation so we don't toggle orientation twice and fight the system.
-    var isFullscreen by rememberSaveable { mutableStateOf(false) }
+    // Open in landscape fullscreen by default so the player isn't "straight"
+    // (portrait) with all the control chrome showing. User asked for auto-rotate.
+    var isFullscreen by rememberSaveable { mutableStateOf(true) }
     var showTrackSheet by remember { mutableStateOf(false) }
 
     // Stream-resolution state (declared before the effects that read it).
@@ -344,6 +345,9 @@ fun PlayerScreen(
                         )
                         useController = true
                         setShowSubtitleButton(true)
+                        // Drop the +/-10s rewind/fast-forward clutter from the controller.
+                        setShowRewindButton(false)
+                        setShowFastForwardButton(false)
                     }
                 },
                 modifier = Modifier.fillMaxSize()
