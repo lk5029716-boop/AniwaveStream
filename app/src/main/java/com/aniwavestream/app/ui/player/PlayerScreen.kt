@@ -70,6 +70,7 @@ import com.aniwavestream.app.ui.theme.OrangePrimary
 import com.aniwavestream.app.ui.theme.SurfaceElevated
 import com.aniwavestream.app.ui.theme.TextPrimary
 import com.aniwavestream.app.ui.theme.TextSecondary
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -97,32 +98,45 @@ fun PlayerScreen(
     val playbackError by vm.error.collectAsStateWithLifecycle()
     val currentTracks by vm.tracks.collectAsStateWithLifecycle()
 
-    var title by remember { mutableStateOf(context.getString(R.string.loading)) }
+    // Start blank so the resolve effect below waits for the REAL title from
+    // repository.detail() instead of firing immediately with the "Loading"
+    // placeholder (which would never match a backend slug and always fail).
+    var title by remember { mutableStateOf("") }
     var maxEp by remember { mutableStateOf(12) }
     // Survives rotation so we don't toggle orientation twice and fight the system.
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     var showTrackSheet by remember { mutableStateOf(false) }
 
+    // Stream-resolution state (declared before the effects that read it).
+    var streamUrl by remember(animeId, episode) { mutableStateOf<String?>(null) }
+    var resolveError by remember(animeId, episode) { mutableStateOf(false) }
+    var reloadKey by remember { mutableStateOf(0) }
+
     LaunchedEffect(animeId) {
-        repository.detail(animeId).onSuccess {
-            title = it.title
-            maxEp = (it.episodes ?: 12).coerceIn(1, 24)
-        }
+        repository.detail(animeId)
+            .onSuccess {
+                title = it.title
+                maxEp = (it.episodes ?: 12).coerceIn(1, 24)
+            }
+            .onFailure { resolveError = true }   // can't fetch title -> nothing to resolve
     }
 
     // Real stream resolution: hit the self-hosted Aniwaves API (vidplay / bymas) for
     // this anime's title + episode. NO demo fallback -- if it can't resolve we show
     // a real error overlay (retry), never a fake sample video.
-    var streamUrl by remember(animeId, episode) { mutableStateOf<String?>(null) }
-    var resolveError by remember(animeId, episode) { mutableStateOf(false) }
-    var reloadKey by remember { mutableStateOf(0) }
+    // CRITICAL FIX: AniwavesApi.resolveStream() performs BLOCKING network I/O
+    // (OkHttp .execute()). Calling it on the main thread triggers Android's
+    // default NetworkOnMainThread detection (active in debug builds), which
+    // throws and is swallowed by runCatching -> null -> "Playback hit a snag"
+    // without ExoPlayer ever being touched ("it don't even try"). Move the work
+    // to Dispatchers.IO and only then set the resolved URL / error state.
     LaunchedEffect(animeId, episode, title, reloadKey) {
         if (title.isBlank()) return@LaunchedEffect
         resolveError = false
-        // Wake the (free-tier) backend so the multi-step resolve chain doesn't
-        // time out on a cold start.
-        runCatching { AniwavesApi.warmUp() }
-        val resolved = runCatching { AniwavesApi.resolveStream(title, episode) }.getOrNull()
+        val resolved = withContext(Dispatchers.IO) {
+            runCatching { AniwavesApi.warmUp() }              // wake free-tier backend
+            runCatching { AniwavesApi.resolveStream(title, episode) }.getOrNull()
+        }
         if (!resolved.isNullOrBlank()) { streamUrl = resolved; resolveError = false }
         else { streamUrl = null; resolveError = true }
     }
