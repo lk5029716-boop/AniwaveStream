@@ -18,6 +18,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -491,6 +493,9 @@ fun PlayerScreen(
                         }
                     }
                 }
+                // Action buttons in a horizontal-scroll row so they never overflow /
+                // clip on narrow landscape screens (the "action tabs failed" symptom).
+                Row(Modifier.horizontalScroll(rememberScrollState())) {
                 IconButton(onClick = { touchControls(); showEpisodeSheet = true }) {
                     Icon(Icons.Filled.List, contentDescription = stringResource(R.string.episodes), tint = Color.White)
                 }
@@ -520,6 +525,7 @@ fun PlayerScreen(
                 }
                 IconButton(onClick = { touchControls(); toggleLock() }) {
                     Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.lock_controls), tint = Color.White)
+                }
                 }
             }
         }
