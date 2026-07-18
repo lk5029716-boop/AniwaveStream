@@ -7,6 +7,8 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,19 +18,28 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -118,6 +129,15 @@ fun PlayerScreen(
     var errorDetail by remember(animeId, episode) { mutableStateOf<String?>(null) }
     // Bumped on Retry to re-trigger the load effect even if streamUrl is unchanged.
     var loadKey by remember { mutableStateOf(0) }
+
+    // ---- Custom controller UI state ----
+    var controlsVisible by remember { mutableStateOf(true) }
+    var lastInteraction by remember { mutableStateOf(System.currentTimeMillis()) }
+    var isPlaying by remember { mutableStateOf(true) }
+    var positionMs by remember { mutableStateOf(0L) }
+    var durationMs by remember { mutableStateOf(0L) }
+    var showAudioSheet by remember { mutableStateOf(false) }
+    var showEpisodeSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(animeId) {
         repository.detail(animeId)
@@ -261,8 +281,32 @@ fun PlayerScreen(
         }
     }
 
+    // Sync custom-controller state (play/pause, position, auto-hide) from ExoPlayer.
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            delay(300)
+            runCatching {
+                isPlaying = exoPlayer.isPlaying
+                positionMs = exoPlayer.currentPosition
+                durationMs = if (exoPlayer.duration > 0) exoPlayer.duration else 0L
+            }
+            if (isPlaying && controlsVisible &&
+                System.currentTimeMillis() - lastInteraction > 3500L
+            ) {
+                controlsVisible = false
+            }
+        }
+    }
+
+    fun touchControls() {
+        lastInteraction = System.currentTimeMillis()
+        controlsVisible = true
+    }
+
     BackHandler {
         when {
+            showEpisodeSheet -> showEpisodeSheet = false
+            showAudioSheet -> showAudioSheet = false
             showTrackSheet -> showTrackSheet = false
             isFullscreen -> isFullscreen = false
             else -> onBack()
@@ -271,137 +315,153 @@ fun PlayerScreen(
 
     val trackState = currentTracks?.toTrackSelectionUiState() ?: TrackSelectionUiState()
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-    ) {
-        AnimatedVisibility(visible = !isFullscreen) {
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        // Real video surface -- native controller is OFF, we draw our own.
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    player = exoPlayer
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    useController = false
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Tap the video itself to toggle the controls.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clickable {
+                    lastInteraction = System.currentTimeMillis()
+                    controlsVisible = !controlsVisible
+                }
+        ) {}
+
+        // ---- Top bar: back / title / episodes / audio / subtitles / rotate ----
+        AnimatedVisibility(
+            visible = controlsVisible,
+            modifier = Modifier.align(Alignment.TopCenter),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(Background)
-                    .padding(4.dp),
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .clickable { touchControls() }
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = { touchControls(); onBack() }) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = stringResource(R.string.back),
-                        tint = TextPrimary
+                        tint = Color.White
                     )
                 }
-                Column(Modifier.weight(1f)) {
-                    Text(title, color = TextPrimary, maxLines = 1)
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .padding(start = 4.dp)
+                ) {
+                    Text(title, color = Color.White, maxLines = 1)
                     Text(
                         stringResource(R.string.episode_label, episode),
-                        color = TextSecondary
+                        color = Color.White.copy(alpha = 0.7f)
                     )
                 }
-                if (trackState.hasAudioOptions || trackState.hasSubtitleOptions) {
-                    IconButton(onClick = { showTrackSheet = true }) {
-                        Icon(
-                            Icons.Filled.Subtitles,
-                            contentDescription = stringResource(R.string.audio_and_subtitles),
-                            tint = OrangePrimary
-                        )
-                    }
+                IconButton(onClick = { touchControls(); showEpisodeSheet = true }) {
+                    Icon(Icons.Filled.List, contentDescription = "Episodes", tint = Color.White)
                 }
-                IconButton(
-                    onClick = { if (episode > 1) onEpisodeChange(episode - 1) },
-                    enabled = episode > 1
-                ) {
+                IconButton(onClick = { touchControls(); showAudioSheet = true }) {
+                    Icon(Icons.Filled.Audiotrack, contentDescription = "Audio", tint = Color.White)
+                }
+                IconButton(onClick = { touchControls(); showTrackSheet = true }) {
                     Icon(
-                        Icons.Filled.SkipPrevious,
-                        contentDescription = stringResource(R.string.previous_episode),
-                        tint = OrangePrimary
+                        Icons.Filled.Subtitles,
+                        contentDescription = stringResource(R.string.audio_and_subtitles),
+                        tint = Color.White
                     )
                 }
-                IconButton(
-                    onClick = { if (episode < maxEp) onEpisodeChange(episode + 1) },
-                    enabled = episode < maxEp
-                ) {
+                IconButton(onClick = { touchControls(); isFullscreen = !isFullscreen }) {
                     Icon(
-                        Icons.Filled.SkipNext,
-                        contentDescription = stringResource(R.string.next_episode),
-                        tint = OrangePrimary
+                        if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
+                        contentDescription = if (isFullscreen) "Portrait" else "Landscape",
+                        tint = Color.White
                     )
                 }
             }
         }
 
-        Box(
-            Modifier
-                .weight(1f)
-                .fillMaxWidth()
+        // ---- Bottom bar: seek + play/pause ----
+        AnimatedVisibility(
+            visible = controlsVisible,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = fadeIn(),
+            exit = fadeOut()
         ) {
-            AndroidView(
-                factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        player = exoPlayer
-                        layoutParams = FrameLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                        useController = true
-                        setShowSubtitleButton(true)
-                        // Drop the +/-10s rewind/fast-forward clutter from the controller.
-                        setShowRewindButton(false)
-                        setShowFastForwardButton(false)
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-
-            IconButton(
-                onClick = { isFullscreen = !isFullscreen },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(12.dp)
-            ) {
-                Icon(
-                    if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
-                    contentDescription = stringResource(
-                        if (isFullscreen) R.string.exit_fullscreen else R.string.enter_fullscreen
-                    ),
-                    tint = Color.White
-                )
-            }
-
-            if (playbackError != null || resolveError) {
-                PlaybackErrorOverlay(
-                    detail = errorDetail,
-                    onRetry = {
-                        vm.clearError()
-                        resolveError = false
-                        errorDetail = null
-                        // Re-run both load + resolve effects by bumping their keys.
-                        loadKey++
-                        reloadKey++
-                    }
-                )
-            }
-        }
-
-        AnimatedVisibility(visible = !isFullscreen) {
-            Row(
+            Column(
                 Modifier
                     .fillMaxWidth()
-                    .background(Background)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .clickable { touchControls() }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                TextButton(onClick = {
-                    if (episode < maxEp) onEpisodeChange(episode + 1)
-                }) {
-                    Text(stringResource(R.string.next_episode), color = OrangePrimary)
+                Slider(
+                    value = positionMs.toFloat().coerceAtLeast(0f),
+                    onValueChange = { v ->
+                        touchControls()
+                        runCatching { exoPlayer.seekTo(v.toLong()) }
+                    },
+                    valueRange = 0f..(if (durationMs > 0) durationMs.toFloat() else 1f),
+                    colors = SliderDefaults.colors(
+                        thumbColor = OrangePrimary,
+                        activeTrackColor = OrangePrimary,
+                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                    )
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = {
+                        touchControls()
+                        runCatching { if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play() }
+                    }) {
+                        Icon(
+                            if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                    Text(
+                        "${formatTime(positionMs)} / ${formatTime(durationMs)}",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
             }
+        }
+
+        if (playbackError != null || resolveError) {
+            PlaybackErrorOverlay(
+                detail = errorDetail,
+                onRetry = {
+                    vm.clearError()
+                    resolveError = false
+                    errorDetail = null
+                    // Re-run both load + resolve effects by bumping their keys.
+                    loadKey++
+                    reloadKey++
+                }
+            )
         }
     }
 
     if (showTrackSheet) {
-        TrackSelectionSheet(
+        SubtitleSheet(
             state = trackState,
             onSelect = { track ->
                 runCatching { currentTracks?.let { exoPlayer.selectTrack(track, it) } }
@@ -414,6 +474,37 @@ fun PlayerScreen(
             onDismiss = { showTrackSheet = false }
         )
     }
+
+    if (showAudioSheet) {
+        AudioSheet(
+            state = trackState,
+            onSelect = { track ->
+                runCatching { currentTracks?.let { exoPlayer.selectTrack(track, it) } }
+                showAudioSheet = false
+            },
+            onDismiss = { showAudioSheet = false }
+        )
+    }
+
+    if (showEpisodeSheet) {
+        EpisodeSheet(
+            current = episode,
+            total = maxEp,
+            onSelect = { ep ->
+                if (ep != episode) onEpisodeChange(ep)
+                showEpisodeSheet = false
+            },
+            onDismiss = { showEpisodeSheet = false }
+        )
+    }
+}
+
+private fun formatTime(ms: Long): String {
+    val totalSec = (ms / 1000).toInt().coerceAtLeast(0)
+    val h = totalSec / 3600
+    val m = (totalSec % 3600) / 60
+    val s = totalSec % 60
+    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
 }
 
 @Composable
@@ -464,7 +555,7 @@ private fun PlaybackErrorOverlay(
 }
 
 @Composable
-private fun TrackSelectionSheet(
+private fun SubtitleSheet(
     state: TrackSelectionUiState,
     onSelect: (SelectableTrack) -> Unit,
     onSubtitlesOff: () -> Unit,
@@ -483,30 +574,121 @@ private fun TrackSelectionSheet(
                 .background(SurfaceElevated, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                 .padding(20.dp)
         ) {
+            Text(
+                stringResource(R.string.subtitles),
+                color = TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.width(8.dp))
+            TrackRow(stringResource(R.string.subtitles_off), false, onSubtitlesOff)
+            if (state.hasSubtitleOptions) {
+                state.subtitleTracks.forEach { track ->
+                    TrackRow(track.label, track.isSelected) { onSelect(track) }
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                Text(stringResource(R.string.close), color = OrangePrimary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AudioSheet(
+    state: TrackSelectionUiState,
+    onSelect: (SelectableTrack) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f))
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(SurfaceElevated, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                .padding(20.dp)
+        ) {
+            Text(
+                "Audio",
+                color = TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.width(8.dp))
             if (state.hasAudioOptions) {
-                Text(
-                    stringResource(R.string.audio_tracks),
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.width(8.dp))
                 state.audioTracks.forEach { track ->
                     TrackRow(track.label, track.isSelected) { onSelect(track) }
                 }
-                Spacer(Modifier.width(16.dp))
-            }
-            if (state.hasSubtitleOptions) {
+            } else {
                 Text(
-                    stringResource(R.string.subtitles),
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    "No alternate audio tracks for this source",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
                 )
-                Spacer(Modifier.width(8.dp))
-                TrackRow(stringResource(R.string.subtitles_off), false, onSubtitlesOff)
-                state.subtitleTracks.forEach { track ->
-                    TrackRow(track.label, track.isSelected) { onSelect(track) }
+            }
+            Spacer(Modifier.width(12.dp))
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                Text(stringResource(R.string.close), color = OrangePrimary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun EpisodeSheet(
+    current: Int,
+    total: Int,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f))
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(SurfaceElevated, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                .padding(20.dp)
+        ) {
+            Text(
+                "Episodes",
+                color = TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.width(8.dp))
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 48.dp),
+                modifier = Modifier.heightIn(max = 360.dp)
+            ) {
+                items(total) { index ->
+                    val ep = index + 1
+                    Box(
+                        Modifier
+                            .padding(4.dp)
+                            .background(
+                                if (ep == current) OrangePrimary else Background,
+                                RoundedCornerShape(8.dp)
+                            )
+                            .clickable { onSelect(ep) }
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            ep.toString(),
+                            color = if (ep == current) Color.White else TextPrimary
+                        )
+                    }
                 }
             }
             Spacer(Modifier.width(12.dp))
