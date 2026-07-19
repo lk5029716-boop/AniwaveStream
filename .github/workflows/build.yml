@@ -28,14 +28,28 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --console=plain > /tmp/build.log 2>&1
 
-      - name: Upload debug APK artifact
+      - name: Upload debug APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Post build log to commit
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "### CI assembleDebug log (tail)"
+            echo '```'
+            tail -120 /tmp/build.log
+            echo '```'
+          } > /tmp/comment.md
+          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" -f body="$(cat /tmp/comment.md)" \
+            && echo "comment posted" || echo "comment post FAILED"
 
       - name: Publish APK to nightly release
         if: success()
