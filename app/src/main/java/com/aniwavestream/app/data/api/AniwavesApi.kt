@@ -15,26 +15,23 @@ import java.util.concurrent.TimeUnit
 /**
  * Real playback backend (Aniwavesapi). Resolves aniwaves.ru streams.
  *
- * The app keys anime by Jikan `mal_id` (Int), but this backend keys by its own
- * slug string (e.g. "naruto-76396"). We therefore resolve the slug from the
- * title via /api/search and cache it per anime id.
- *
- * Flow: title -> /api/search (slug) -> /api/servers (Vidplay/BYFMS/DGHG) ->
- * /api/stream (proxiedM3u8). The proxiedM3u8 path is same-origin to the API
- * base, so we prefix it with the base URL before handing it to ExoPlayer.
+ * IMPORTANT: the backend serves JSON ONLY under the `/api/*` prefix. The bare
+ * paths (`/search`, `/servers`, `/stream`) return an HTML "Endpoint Tester"
+ * page, which makes Retrofit's JSON converter throw and the player fail on
+ * every single episode. Always hit `/api/...`.
  */
 interface AniwavesApi {
 
-    @GET("search")
+    @GET("api/search")
     suspend fun search(@Query("q") query: String): SearchResponse
 
-    @GET("servers")
+    @GET("api/servers")
     suspend fun servers(
         @Query("episodeId") episodeId: String,
         @Query("type") type: String = "sub"
     ): ServersResponse
 
-    @GET("stream")
+    @GET("api/stream")
     suspend fun stream(@Query("serverId") serverId: String): StreamResponse
 
     companion object {
