@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.aniwavestream.app.ui.navigation.AniwaveNavHost
+import com.aniwavestream.app.ui.player.PlayerPipState
 import com.aniwavestream.app.ui.theme.AniwaveTheme
 import com.aniwavestream.app.ui.theme.Background
 
@@ -27,6 +28,22 @@ class MainActivity : ComponentActivity() {
                         library = app.library
                     )
                 }
+            }
+        }
+    }
+
+    // Auto-enter PiP when the user leaves the activity while an episode plays.
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (PlayerPipState.active) {
+            val rational = android.util.Rational(16, 9)
+            val params = android.app.PictureInPictureParams.Builder()
+                .setAspectRatio(rational)
+                .build()
+            try {
+                enterPictureInPictureMode(params)
+            } catch (_: Exception) {
+                // Device may not support PiP — ignore.
             }
         }
     }
