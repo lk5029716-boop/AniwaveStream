@@ -1,7 +1,6 @@
 package com.aniwavestream.app.data.api
 
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -15,10 +14,10 @@ import java.util.concurrent.TimeUnit
 /**
  * Real playback backend (Aniwavesapi). Resolves aniwaves.ru streams.
  *
- * IMPORTANT: the backend serves JSON ONLY under the `/api/*` prefix. The bare
+ * IMPORTANT: the backend serves JSON ONLY under the `/api/` prefix. The bare
  * paths (`/search`, `/servers`, `/stream`) return an HTML "Endpoint Tester"
  * page, which makes Retrofit's JSON converter throw and the player fail on
- * every single episode. Always hit `/api/...`.
+ * every single episode. Always hit the api-prefixed paths.
  */
 interface AniwavesApi {
 
