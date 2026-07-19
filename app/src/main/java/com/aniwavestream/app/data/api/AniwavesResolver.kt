@@ -75,7 +75,7 @@ class AniwavesResolver(private val api: AniwavesApi = AniwavesApi.create()) {
                 else -> 3
             }
         }
-        ordered to episodeId
+        return ordered to episodeId
     }
 
     private suspend fun firstWorkingUrl(servers: List<Server>): String? {
