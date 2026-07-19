@@ -41,10 +41,15 @@ class AniwavesResolver(private val api: AniwavesApi = AniwavesApi.create()) {
         withContext(Dispatchers.IO) {
             val slug = slugFor(animeId, title)
             val (servers, _) = serversFor(slug, episode)
-            servers.mapNotNull { s ->
+            // NOTE: a suspend call (tryResolveStream) cannot live inside a
+            // mapNotNull lambda (non-suspending), so use an explicit loop.
+            val resolved = mutableListOf<ResolvedServer>()
+            for (s in servers) {
                 val url = tryResolveStream(s.id)
-                if (url != null) ResolvedServer(s.id, s.name, url) else null
-            }.also { if (it.isEmpty()) throw IllegalStateException("No servers resolved") }
+                if (url != null) resolved += ResolvedServer(s.id, s.name, url)
+            }
+            if (resolved.isEmpty()) throw IllegalStateException("No servers resolved")
+            resolved
         }
 
     private suspend fun slugFor(animeId: Int, title: String): String =
@@ -57,7 +62,7 @@ class AniwavesResolver(private val api: AniwavesApi = AniwavesApi.create()) {
         }
 
     private suspend fun serversFor(slug: String, episode: Int): Pair<List<Server>, String> {
-        val episodeId = "${slug}-ep-${episode}"
+        val episodeId = "$slug-ep-$episode"
         val servers = api.servers(episodeId = episodeId, type = "sub").servers
         if (servers.isEmpty()) {
             throw IllegalStateException("No servers returned for $episodeId")
