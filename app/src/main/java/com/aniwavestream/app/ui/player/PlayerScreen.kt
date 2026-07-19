@@ -261,7 +261,7 @@ fun PlayerScreen(
                     doubleTap = DoubleTapIndicator(right, System.currentTimeMillis())
                 },
                 onScrub = { fraction ->
-                    if (duration > 0) exoPlayer.seekTo((fraction * duration).toLong())
+                    if (duration > 0) exoPlayer.seekTo((fraction * duration.toFloat()).toLong())
                 },
                 onVolume = { level -> setVolume(context, level) },
                 onBrightness = { level -> setBrightness(context, level) }
@@ -290,6 +290,7 @@ fun PlayerScreen(
         // Bottom controls.
         AnimatedVisibility(
             visible = controlsVisible && !locked,
+            modifier = Modifier.align(Alignment.BottomCenter),
             enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
         ) {
@@ -299,8 +300,8 @@ fun PlayerScreen(
             ) {
                 // Seek bar — Crunchyroll orange active segment on dark-gray track.
                 Slider(
-                    value = if (duration > 0) (position.toFloat() / duration) else 0f,
-                    onValueChange = { if (duration > 0) exoPlayer.seekTo((it * duration).toLong()) },
+                    value = if (duration > 0) (position.toFloat() / duration.toFloat()) else 0f,
+                    onValueChange = { if (duration > 0) exoPlayer.seekTo((it * duration.toFloat()).toLong()) },
                     valueRange = 0f..1f,
                     modifier = Modifier.fillMaxWidth(),
                     colors = SliderDefaults.colors(
@@ -355,13 +356,14 @@ fun PlayerScreen(
         // Menu sheets (slide up + fade).
         AnimatedVisibility(
             visible = menu != Menu.NONE,
+            modifier = Modifier.align(Alignment.BottomCenter),
             enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
         ) {
             Surface(
                 color = SurfaceDark,
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState())) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
