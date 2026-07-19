@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.aniwavestream.app.ui.player
 
 import android.app.Activity
@@ -21,7 +23,6 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,7 +32,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -82,7 +82,6 @@ import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
-import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -394,7 +393,7 @@ fun PlayerScreen(
                         Menu.SUBS -> {
                             MenuRow("Off", subOptions.none { isSelected(tracks, it) }) {
                                 exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
-                                    .buildUpon().clearOverrideOfType(C.TRACK_TYPE_TEXT).build()
+                                    .buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT).build()
                             }
                             subOptions.forEach { opt ->
                                 MenuRow(opt.label, isSelected(tracks, opt)) { selectTrack(exoPlayer, opt) }
@@ -586,17 +585,21 @@ private fun enterPip(context: Context) {
 
 // ---------- track helpers ----------
 
-private data class TrackOption(val groupIndex: Int, val trackIndex: Int, val label: String)
+private data class TrackOption(
+    val mediaGroup: androidx.media3.common.TrackGroup,
+    val groupIndex: Int,
+    val trackIndex: Int,
+    val label: String
+)
 
 private fun collectTracks(tracks: Tracks, type: Int): List<TrackOption> {
     val out = mutableListOf<TrackOption>()
     tracks.groups.forEachIndexed { gi, group ->
         if (group.length == 0) return@forEachIndexed
-        val fmt = group.getTrackFormat(0)
-        if (fmt.trackType != type) return@forEachIndexed
+        if (group.type != type) return@forEachIndexed
         for (i in 0 until group.length) {
             val f = group.getTrackFormat(i)
-            out.add(TrackOption(gi, i, formatLabel(f, type)))
+            out.add(TrackOption(group.mediaTrackGroup, gi, i, formatLabel(f, type)))
         }
     }
     return out
@@ -618,7 +621,7 @@ private fun isSelected(tracks: Tracks, opt: TrackOption): Boolean {
 
 private fun selectTrack(exoPlayer: ExoPlayer, opt: TrackOption) {
     val params = exoPlayer.trackSelectionParameters.buildUpon()
-        .setOverrideForType(TrackSelectionOverride(opt.groupIndex, listOf(opt.trackIndex)))
+        .setOverrideForType(TrackSelectionOverride(opt.mediaGroup, listOf(opt.trackIndex)))
         .build()
     exoPlayer.trackSelectionParameters = params
 }
