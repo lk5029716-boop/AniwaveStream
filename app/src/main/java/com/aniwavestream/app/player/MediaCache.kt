@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicReference
  * The cache is intentionally global (lives for the app's lifetime) — only the
  * [ExoPlayer] instance is released per-screen via DisposableEffect.
  */
+@UnstableApi
 object MediaCache {
 
     private const val CACHE_DIR = "aniwave_media"
@@ -39,7 +40,6 @@ object MediaCache {
 
     private val cacheRef = AtomicReference<SimpleCache?>()
 
-    @UnstableApi
     fun getCache(context: Context): SimpleCache {
         cacheRef.get()?.let { return it }
         synchronized(this) {
@@ -54,7 +54,6 @@ object MediaCache {
     }
 
     /** HTTP upstream -> cache -> player. Ignores the cache on upstream error. */
-    @UnstableApi
     fun buildDataSourceFactory(context: Context): CacheDataSource.Factory {
         val upstream = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
@@ -66,7 +65,6 @@ object MediaCache {
     }
 
     /** Aggressive buffering: 50s ahead, spin up within 2.5s. */
-    @UnstableApi
     fun buildLoadControl(): DefaultLoadControl =
         DefaultLoadControl.Builder()
             .setBufferDurationsMs(
@@ -78,11 +76,11 @@ object MediaCache {
             .build()
 
     /** Fully wired ExoPlayer with cache + aggressive load control. */
-    @UnstableApi
     fun buildPlayer(context: Context): ExoPlayer =
         ExoPlayer.Builder(context)
             .setMediaSourceFactory(
-                DefaultMediaSourceFactory(context, buildDataSourceFactory(context))
+                DefaultMediaSourceFactory(context)
+                    .setDataSourceFactory(buildDataSourceFactory(context))
             )
             .setLoadControl(buildLoadControl())
             .build()
