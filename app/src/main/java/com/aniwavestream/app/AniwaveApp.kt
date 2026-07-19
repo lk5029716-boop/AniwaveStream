@@ -1,7 +1,6 @@
 package com.aniwavestream.app
 
 import android.app.Application
-import android.content.Intent
 import android.os.Looper
 import coil.ImageLoader
 import coil.ImageLoaderFactory
@@ -22,26 +21,17 @@ class AniwaveApp : Application(), ImageLoaderFactory {
         repository = AnimeRepository()
         library = UserLibraryStore(this)
 
-        // Global safety net: any uncaught exception on the main thread would
-        // otherwise force-close the WHOLE app ("app closes itself" bug). Catch
-        // it, log it, and restart at a safe root instead of dying to the launcher.
+        // Diagnostics only: log uncaught exceptions but DO NOT restart the app.
+        // The previous handler force-restarted the launcher activity on ANY
+        // main-thread throw — including transient player glitches — which made
+        // the app appear to "close itself" / jump to home (the reported
+        // force-close symptom). Masking the crash like that hides the real bug
+        // and produces worse UX than a normal crash. Log it, then let the OS
+        // handle the exception normally so the true root cause is visible.
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             android.util.Log.e("AniwaveApp", "Uncaught exception on ${thread.name}", throwable)
-            if (thread === Looper.getMainLooper().thread) {
-                // Restart the app at the launcher activity so the user lands
-                // somewhere safe instead of a dead process.
-                try {
-                    val intent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    }
-                    intent?.let { startActivity(it) }
-                } catch (e: Throwable) {
-                    defaultHandler?.uncaughtException(thread, throwable)
-                }
-            } else {
-                defaultHandler?.uncaughtException(thread, throwable)
-            }
+            defaultHandler?.uncaughtException(thread, throwable)
         }
     }
 
