@@ -81,15 +81,11 @@ dependencies {
     // Images
     implementation("io.coil-kt:coil-compose:2.7.0")
 
-    // Player (Media3)
+    // Player (Media3). exoplayer bundles datasource + database (SimpleCache,
+    // CacheDataSource, LeastRecentlyUsedCacheEvictor, StandaloneDatabaseProvider).
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-ui:1.5.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.5.1")
-    // Cache + database required by MediaCache.kt (SimpleCache, CacheDataSource,
-    // LeastRecentlyUsedCacheEvictor, StandaloneDatabaseProvider).
-    implementation("androidx.media3:media3-datasource:1.5.1")
-    implementation("androidx.media3:media3-datasource-cache:1.5.1")
-    implementation("androidx.media3:media3-database:1.5.1")
 
     // Preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")
