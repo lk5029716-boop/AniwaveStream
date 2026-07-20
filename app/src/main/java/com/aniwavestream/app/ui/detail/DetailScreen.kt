@@ -38,6 +38,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -96,6 +97,7 @@ import com.aniwavestream.app.ui.theme.TextSecondary
 import com.aniwavestream.app.ui.theme.Void
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     animeId: Int,
@@ -110,6 +112,28 @@ fun DetailScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedRangeStart by remember { mutableStateOf(1) }
     var rangeMenuExpanded by remember { mutableStateOf(false) }
+
+    // Derived episode-view state (design spec: ranges of 50, capped 24 visible)
+    val totalEps = (anime?.episodes ?: 0).coerceAtLeast(0)
+    val epRanges = remember(totalEps) {
+        if (totalEps <= 50) emptyList()
+        else buildList {
+            var start = 1
+            while (start <= totalEps) {
+                val end = minOf(start + 49, totalEps)
+                add(start to end)
+                start = end + 1
+            }
+        }
+    }
+    val showDropdown = epRanges.size > 1
+    val visibleEpisodes = remember(episodes, epRanges, selectedRangeStart, searchQuery) {
+        val q = searchQuery.trim().lowercase()
+        val inRange = if (epRanges.isEmpty() || !showDropdown) episodes
+        else episodes.filter { it.number in selectedRangeStart..minOf(selectedRangeStart + 49, totalEps) }
+        val searched = if (q.isEmpty()) inRange else inRange.filter { it.title.lowercase().contains(q) }
+        searched.take(24)
+    }
     var characters by remember { mutableStateOf<List<Character>>(emptyList()) }
     var related by remember { mutableStateOf<List<Anime>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -370,27 +394,6 @@ fun DetailScreen(
                         Spacer(Modifier.height(20.dp))
                         CharacterRow(characters = characters)
                         Spacer(Modifier.height(20.dp))
-                        val totalEps = (a.episodes ?: 0).coerceAtLeast(0)
-                        val epRanges = remember(totalEps) {
-                            if (totalEps <= 50) emptyList()
-                            else buildList {
-                                var start = 1
-                                while (start <= totalEps) {
-                                    val end = minOf(start + 49, totalEps)
-                                    add(start to end)
-                                    start = end + 1
-                                }
-                            }
-                        }
-                        val showDropdown = epRanges.size > 1
-                        val visibleEpisodes = remember(episodes, epRanges, selectedRangeStart, searchQuery) {
-                            val q = searchQuery.trim().lowercase()
-                            val inRange = if (epRanges.isEmpty() || !showDropdown) episodes
-                            else episodes.filter { it.number in selectedRangeStart..minOf(selectedRangeStart + 49, totalEps) }
-                            val searched = if (q.isEmpty()) inRange else inRange.filter { it.title.lowercase().contains(q) }
-                            searched.take(24)
-                        }
-
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 "Episodes (${totalEps})",
@@ -413,9 +416,12 @@ fun DetailScreen(
                                     onValueChange = {},
                                     readOnly = true,
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = rangeMenuExpanded) },
-                                    colors = ExposedDropdownMenuDefaults.textFieldColors(
-                                        containerColor = SurfaceRaised,
-                                        textColor = TextPrimary
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = SurfaceRaised,
+                                        unfocusedContainerColor = SurfaceRaised,
+                                        focusedTextColor = TextPrimary,
+                                        unfocusedTextColor = TextPrimary,
+                                        cursorColor = Flame
                                     ),
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier
