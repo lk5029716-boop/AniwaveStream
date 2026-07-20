@@ -184,6 +184,7 @@ fun PlayerScreen(
     var errorDetail by remember(animeId, episode) { mutableStateOf<String?>(null) }
     var loadKey by remember { mutableIntStateOf(0) }
     var reloadKey by remember { mutableIntStateOf(0) }
+    var staleRetries by remember(animeId, episode) { mutableIntStateOf(0) }
     var isBuffering by remember { mutableStateOf(true) }
 
     var controlsVisible by remember { mutableStateOf(true) }
@@ -281,6 +282,9 @@ fun PlayerScreen(
         )
         val pack = withContext(Dispatchers.IO) {
             runCatching {
+                // Wake the Render free-tier backend FIRST, so the stream token we
+                // resolve next is fresh at play time (tokens expire in ~2 min).
+                AniwavesApi.warmUp()
                 val slug = AniwavesApi.resolveSlug(title)
                 if (slug.isNullOrBlank()) {
                     return@runCatching ResolvePack(null, emptyList(), null, null)
@@ -356,9 +360,19 @@ fun PlayerScreen(
         }
         isBuffering = false
         if (!ok) {
-            resolveError = true
-            errorDetail = vm.error.value?.message
-                ?: "ExoPlayer couldn't load the stream (timed out after $maxAttempts attempts)"
+            // The token likely expired between resolve and play (CDN tokens die in
+            // ~2 min). Re-resolving fetches a FRESH url instead of retrying the dead
+            // one. Guard with staleRetries so we don't loop forever on a real outage.
+            if (staleRetries < 2) {
+                staleRetries++
+                reloadKey++   // re-runs the resolve LaunchedEffect -> fresh token
+            } else {
+                resolveError = true
+                errorDetail = vm.error.value?.message
+                    ?: "ExoPlayer couldn't load the stream (timed out after $maxAttempts attempts)"
+            }
+        } else {
+            staleRetries = 0
         }
     }
 
