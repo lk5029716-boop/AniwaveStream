@@ -129,7 +129,7 @@ object PlayerModule {
             val mime = MimeTypes.APPLICATION_SUBRIP
             builder.setSubtitleConfigurations(
                 subtitles.map { s ->
-                    MediaItem.SubtitleConfiguration.Builder(s.url.toUri())
+                    MediaItem.SubtitleConfiguration.Builder(Uri.parse(s.url))
                         .setMimeType(mime)
                         .setLanguage(s.lang)
                         .setLabel(s.label)
