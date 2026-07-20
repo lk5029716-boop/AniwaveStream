@@ -47,6 +47,7 @@ import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.repository.UserLibraryStore
 import com.aniwavestream.app.ui.browse.BrowseScreen
 import com.aniwavestream.app.ui.detail.DetailScreen
+import com.aniwavestream.app.ui.player.PlayerScreen
 import com.aniwavestream.app.ui.home.HomeScreen
 import com.aniwavestream.app.ui.home.SeeAllKind
 import com.aniwavestream.app.ui.home.SeeAllScreen
