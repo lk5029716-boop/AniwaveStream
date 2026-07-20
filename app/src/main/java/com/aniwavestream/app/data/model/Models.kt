@@ -1,6 +1,7 @@
 package com.aniwavestream.app.data.model
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.Alignment
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
