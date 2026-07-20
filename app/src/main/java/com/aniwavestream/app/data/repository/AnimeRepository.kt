@@ -2,6 +2,7 @@ package com.aniwavestream.app.data.repository
 
 import com.aniwavestream.app.data.api.AniListApi
 import com.aniwavestream.app.data.model.AlMedia
+import com.aniwavestream.app.data.model.AiringSchedule
 import com.aniwavestream.app.data.model.AlResponse
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.Character
@@ -243,9 +244,19 @@ class AnimeRepository(
         }
     }
 
-    /** Weekly schedule — AniList has no curated weekly slate; keep the demo list. */
-    suspend fun schedule(day: String, perPage: Int = 14): Result<List<Anime>> =
-        Result.success(emptyList())
+    /**
+     * REAL weekly schedule from AniList AiringSchedule. We fetch the next 7 days of
+     * airing episodes (time-windowed) and hand the flat list back; the ViewModel
+     * groups it by weekday + derives "EP x" + status. No mock data.
+     */
+    suspend fun schedule(perPage: Int = 60): Result<List<AiringSchedule>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            val text = AniListApi.query(AIRING_Q) { int("per", perPage); int("window", 7 * 24 * 3600) }
+            val resp = parse(text)
+            resp.data?.Page?.airingSchedules?.mapNotNull { it.toAiring() } ?: emptyList()
+        }
+    }
 
     fun cached(id: Int): Anime? = cache[id]
 }
@@ -353,6 +364,33 @@ query(${'$'}id: Int) {
     }
   }
 }"""
+
+private const val AIRING_Q = """
+query(${'$'}per: Int, ${'$'}window: Int) {
+  Page(page: 1, perPage: ${'$'}per) {
+    airingSchedules(sort: TIME, airingAt_greater: 0, airingAt_lesser: ${'$'}window) {
+      episode
+      airingAt
+      media { id title { romaji english } coverImage { medium } episodes status }
+    }
+  }
+}
+"""
+
+private fun com.aniwavestream.app.data.model.AlAiring.toAiring(): AiringSchedule? {
+    val m = media ?: return null
+    val t = m.title
+    val name = (t?.english ?: t?.romaji).orEmpty().ifBlank { return null }
+    return AiringSchedule(
+        id = m.id,
+        title = name,
+        cover = m.coverImage?.medium,
+        episode = episode ?: 0,
+        totalEpisodes = m.episodes,
+        airingAt = airingAt ?: 0L,
+        status = m.status
+    )
+}
 
 /** Maps the numeric BrowseGenres ids used by the UI to AniList genre names. */
 private val GENRE_NAMES = mapOf(
