@@ -1456,6 +1456,15 @@ fun AnivaveScheduleCard(
  * Points (as % of the art container): TL 38%,0 -> TR 100%,0 -> BR 100%,100% -> BL 8%,100%.
  * Only the clip path is slanted — the image bitmap itself is NOT skewed/rotated.
  */
+// ── Shared, hardcoded schedule-row geometry (NO per-row variation) ─────────────
+// Every row uses these exact dimensions so all rows are pixel-identical.
+private val ROW_HEIGHT = 104.dp
+private val ART_SLOT_WIDTH = 170.dp
+private val ROW_CORNER = 12.dp
+private val ROW_HPAD = 12.dp
+private val ROW_VPAD = 12.dp
+private val ART_CLIP_MARGIN = 2.dp   // tiny inset so the slanted edge isn't clipped by the rounded card
+
 private val SlantedArtShape = GenericShape { size: Size, _ ->
     val w = size.width
     val h = size.height
@@ -1472,22 +1481,25 @@ fun ScheduleRow(
     s: DayAiring,
     onItem: () -> Unit = {}
 ) {
+    // Fixed-height row: identical for every item, zero per-row variation.
     Box(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .height(ROW_HEIGHT)
+            .clipToBounds()
+            .clip(RoundedCornerShape(ROW_CORNER))
             .background(SurfaceRaised.copy(alpha = 0.92f))
             .clickable { onItem() }
     ) {
-        // --- Trailing slanted cover art (right edge, ~168dp wide) ---
+        // --- Trailing slanted cover art (right edge), fixed slot size ---
         if (!s.cover.isNullOrBlank()) {
             Box(
                 Modifier
                     .align(Alignment.CenterEnd)
-                    .width(168.dp)
-                    .fillMaxHeight()
+                    .width(ART_SLOT_WIDTH)
+                    .height(ROW_HEIGHT)
+                    .clipToBounds()
             ) {
-                // Clipped poster (crop biased to top so faces aren't cut off)
                 AsyncImage(
                     model = s.cover,
                     contentDescription = null,
@@ -1509,21 +1521,21 @@ fun ScheduleRow(
                                     Color.Transparent
                                 ),
                                 startX = 0f,
-                                endX = 168.dp.value * 0.62f
+                                endX = ART_SLOT_WIDTH.value * 0.62f
                             )
                         )
                 )
             }
         }
 
-        // --- Foreground content (time, title, EP badge) unchanged ---
+        // --- Foreground content (time, title, EP badge) ---
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(12.dp, 12.dp),
+                .height(ROW_HEIGHT)
+                .padding(ROW_HPAD, ROW_VPAD),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Broadcast time
             Text(
                 s.time,
                 color = Flame,
@@ -1543,7 +1555,6 @@ fun ScheduleRow(
                 )
                 Spacer(Modifier.height(5.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    // Solid EP badge
                     if (s.episode > 0) {
                         Box(
                             Modifier
@@ -1564,3 +1575,4 @@ fun ScheduleRow(
         }
     }
 }
+
