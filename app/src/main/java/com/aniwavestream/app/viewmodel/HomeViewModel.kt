@@ -5,10 +5,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.ContinueItem
+import com.aniwavestream.app.data.model.AiringSchedule
 import com.aniwavestream.app.data.model.DayAiring
 import com.aniwavestream.app.data.model.DemoNewReleases
 import com.aniwavestream.app.data.model.DemoNewReleaseEpisodes
-import com.aniwavestream.app.data.model.DemoSchedule
 import com.aniwavestream.app.data.model.DemoUpcoming
 import com.aniwavestream.app.data.model.NewReleaseEpisode
 import com.aniwavestream.app.data.model.ScheduleDays
@@ -112,10 +112,17 @@ class HomeViewModel(
     }
 
     private fun loadSchedule(index: Int) {
-        // anivave's weekly schedule is a timed (JST) list; we use the demo slate
-        // (the live Jikan /schedules endpoint doesn't return per-show air times).
-        val day = ScheduleDays.getOrElse(index) { ScheduleDays[0] }
-        _state.update { it.copy(schedule = DemoSchedule[day] ?: emptyList()) }
+        viewModelScope.launch {
+            val day = ScheduleDays.getOrElse(index) { ScheduleDays[0] }
+            runCatching { repository.schedule() }
+                .onSuccess { list: List<AiringSchedule> ->
+                    val map = if (list.isEmpty()) emptyMap() else buildRealSchedule(list)
+                    _state.update { it.copy(schedule = map[day] ?: emptyList()) }
+                }
+                .onFailure {
+                    _state.update { it.copy(schedule = emptyList()) }
+                }
+        }
     }
 
     companion object {
