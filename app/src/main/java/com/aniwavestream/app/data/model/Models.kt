@@ -452,8 +452,23 @@ val DemoNewReleaseEpisodes: List<NewReleaseEpisode> = listOf(
     NewReleaseEpisode(DemoNewReleases[5], "Ep 11", "Mission Complete", "4 days ago", "24m", 0.45f)
 )
 
-/** Calendar pills for the Weekly Schedule card (day name + date number), per anivave.html. */
-val SchedulePills = listOf(
-    "Mon" to 13, "Tue" to 14, "Wed" to 15, "Thu" to 16, "Fri" to 17, "Sat" to 18, "Sun" to 19
-)
+/** Calendar pills for the Weekly Schedule card (day name + date number).
+ *  Computed for the CURRENT week (Mon–Sun) so the date strip is never stale. */
+fun currentWeekPills(): List<Pair<String, Int>> {
+    val cal = java.util.Calendar.getInstance()
+    // Move to the Monday of the current week (Calendar's week starts on Sunday).
+    val dow = cal.get(java.util.Calendar.DAY_OF_WEEK) // 1=Sun .. 7=Sat
+    val daysFromMonday = (dow - java.util.Calendar.MONDAY + 7) % 7
+    cal.add(java.util.Calendar.DAY_OF_MONTH, -daysFromMonday)
+    val names = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    return names.map { name ->
+        val num = cal.get(java.util.Calendar.DAY_OF_MONTH)
+        cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+        name to num
+    }
+}
+
+/** @deprecated kept for reference; use [currentWeekPills] (live dates). */
+@Deprecated("static demo dates — replaced by currentWeekPills()")
+val SchedulePills = currentWeekPills()
 
