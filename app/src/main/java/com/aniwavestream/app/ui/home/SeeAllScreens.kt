@@ -53,7 +53,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.WindowInsets
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.DayAiring
-import com.aniwavestream.app.data.model.DemoSchedule
 import com.aniwavestream.app.data.model.ScheduleDays
 import com.aniwavestream.app.ui.components.AnimePosterCard
 import com.aniwavestream.app.ui.components.AnimeRankedCard
@@ -68,6 +67,9 @@ import com.aniwavestream.app.ui.theme.TextPrimary
 import com.aniwavestream.app.ui.theme.TextMuted
 import com.aniwavestream.app.viewmodel.HomeViewModel
 import com.aniwavestream.app.viewmodel.SeeAllViewModel
+import com.aniwavestream.app.data.repository.UserLibraryStore
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aniwavestream.app.data.repository.AnimeRepository
 
 enum class SeeAllKind { TRENDING, TOP_RATED, SEASONAL, NEW_RELEASES, UPCOMING, CONTINUE, TOP_100 }
 
@@ -393,12 +395,15 @@ private fun SeeAllError(error: String, onRetry: () -> Unit, onBack: () -> Unit) 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeeklyScheduleScreen(
+    repository: AnimeRepository,
     onAnimeClick: (Anime) -> Unit,
     onBack: () -> Unit
 ) {
-    var activeDayIndex by remember { mutableIntStateOf(3) }
+    val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(repository, remember { UserLibraryStore() }))
+    val state by vm.state.collectAsState()
+    var activeDayIndex by remember { mutableIntStateOf(state.scheduleDayIndex) }
     val day = ScheduleDays.getOrElse(activeDayIndex) { ScheduleDays[0] }
-    val shows: List<DayAiring> = DemoSchedule[day] ?: emptyList()
+    val shows: List<DayAiring> = state.schedule
 
     Scaffold(
         containerColor = Background,
@@ -429,10 +434,10 @@ fun WeeklyScheduleScreen(
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             item {
-                // Reuse the exact Home card design, but show ALL rows for the selected day.
+                // Same Home card design, but show ALL rows for the selected day.
                 AnivaveScheduleCard(
                     activeDayIndex = activeDayIndex,
-                    onDay = { activeDayIndex = it },
+                    onDay = { activeDayIndex = it; vm.setScheduleDayIndex(it) },
                     shows = shows,
                     onItem = { onAnimeClick(Anime(title = it.title)) },
                     maxRows = Int.MAX_VALUE,
