@@ -1458,8 +1458,8 @@ fun AnivaveScheduleCard(
  */
 // ── Shared, hardcoded schedule-row geometry (NO per-row variation) ─────────────
 // Every row uses these exact dimensions so all rows are pixel-identical.
-private val ROW_HEIGHT = 104.dp
-private val ART_SLOT_WIDTH = 170.dp
+private val ROW_HEIGHT = 150.dp
+private val ART_SLOT_WIDTH = 135.dp
 private val ROW_CORNER = 12.dp
 private val ROW_HPAD = 12.dp
 private val ROW_VPAD = 12.dp
