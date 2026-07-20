@@ -62,13 +62,12 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.BrightnessHigh
 import androidx.compose.material.icons.outlined.ClosedCaption
-import androidx.compose.material.icons.outlined.Fullscreen
-import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.Speed
@@ -99,13 +98,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -142,10 +145,10 @@ import kotlin.math.roundToInt
  * Premium streaming player — Netflix / Crunchyroll inspired.
  *
  * Layout:
- *  TOP: back · title/ep · SUB|DUB · fullscreen · More (⋮)
- *  LEFT EDGE (mid): lock (circular glass)
+ *  TOP: back · title/ep · More (⋮)  [menu anchored under ⋮]
+ *  LEFT EDGE (mid): lock (circular glass; auto-hides when locked)
  *  CENTER: prev · −10 · play/pause · +10 · next
- *  BOTTOM: scrubber · Audio · Subtitles · Server · Episodes · Quality
+ *  BOTTOM: Audio · Subtitles · Server  |  Episodes · Quality · Settings
  *  More menu: Fit · PiP · Rotate · Cast · Playback Speed
  */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -191,6 +194,7 @@ fun PlayerScreen(
     var bufferedMs by remember { mutableLongStateOf(0L) }
 
     var showMoreMenu by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     var showTrackSheet by remember { mutableStateOf(false) }
     var showAudioSheet by remember { mutableStateOf(false) }
     var showQualitySheet by remember { mutableStateOf(false) }
@@ -198,6 +202,10 @@ fun PlayerScreen(
     var showSpeedSheet by remember { mutableStateOf(false) }
     var showServerSheet by remember { mutableStateOf(false) }
     var resizeMode by rememberSaveable { mutableIntStateOf(0) }
+
+    // When locked: lock icon shows briefly, then hides until user taps the screen
+    var lockIconVisible by remember { mutableStateOf(false) }
+    var lastLockInteraction by remember { mutableLongStateOf(0L) }
 
     val speeds = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
     var speed by remember { mutableFloatStateOf(1f) }
@@ -432,13 +440,19 @@ fun PlayerScreen(
                 isBuffering = state == Player.STATE_BUFFERING ||
                     (state == Player.STATE_IDLE && streamUrl != null && !resolveError)
             }
-            val sheetOpen = showMoreMenu || showTrackSheet || showAudioSheet ||
+            val sheetOpen = showMoreMenu || showSettings || showTrackSheet || showAudioSheet ||
                 showQualitySheet || showEpisodeSheet || showSpeedSheet || showServerSheet
             if (isPlaying && controlsVisible && !sheetOpen &&
                 System.currentTimeMillis() - lastInteraction > 3500L
             ) {
                 controlsVisible = false
                 showMoreMenu = false
+            }
+            // Locked: hide lock icon after a short idle (reappear only on tap)
+            if (locked && lockIconVisible &&
+                System.currentTimeMillis() - lastLockInteraction > 2800L
+            ) {
+                lockIconVisible = false
             }
         }
     }
@@ -473,19 +487,23 @@ fun PlayerScreen(
         runCatching { exoPlayer.seekTo(ms.coerceAtLeast(0)) }
     }
 
-    val anySheet = showMoreMenu || showTrackSheet || showAudioSheet ||
+    val anySheet = showMoreMenu || showSettings || showTrackSheet || showAudioSheet ||
         showQualitySheet || showEpisodeSheet || showSpeedSheet || showServerSheet
 
     BackHandler {
         when {
             showMoreMenu -> showMoreMenu = false
+            showSettings -> showSettings = false
             showEpisodeSheet -> showEpisodeSheet = false
             showServerSheet -> showServerSheet = false
             showAudioSheet -> showAudioSheet = false
             showTrackSheet -> showTrackSheet = false
             showQualitySheet -> showQualitySheet = false
             showSpeedSheet -> showSpeedSheet = false
-            locked -> locked = false
+            locked -> {
+                locked = false
+                lockIconVisible = false
+            }
             isFullscreen -> isFullscreen = false
             else -> onBack()
         }
@@ -537,11 +555,25 @@ fun PlayerScreen(
             Modifier
                 .fillMaxSize()
                 .pointerInput(locked, anySheet) {
-                    if (locked || anySheet) return@pointerInput
+                    if (anySheet) return@pointerInput
+                    if (locked) {
+                        // Locked: tap only reveals the lock icon (then auto-hides)
+                        detectTapGestures(
+                            onTap = {
+                                lastLockInteraction = System.currentTimeMillis()
+                                lockIconVisible = true
+                            }
+                        )
+                        return@pointerInput
+                    }
                     detectTapGestures(
                         onTap = {
                             lastInteraction = System.currentTimeMillis()
-                            controlsVisible = !controlsVisible
+                            if (showMoreMenu) {
+                                showMoreMenu = false
+                            } else {
+                                controlsVisible = !controlsVisible
+                            }
                         },
                         onDoubleTap = { offset ->
                             val w = size.width.toFloat()
@@ -716,99 +748,71 @@ fun PlayerScreen(
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
-                    SubDubPill(
-                        currentType = currentType,
-                        onToggle = {
+                    // More (⋮) — Popup under the icon so it never clips/overlays chrome
+                    val density = LocalDensity.current
+                    Box {
+                        IconButton(onClick = {
                             touchControls()
-                            currentType = if (currentType == "sub") "dub" else "sub"
-                            selectedServerId = null
-                            streamUrl = null
-                            resolveError = false
-                            loadKey++
+                            showMoreMenu = !showMoreMenu
+                        }) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.more),
+                                tint = if (showMoreMenu) Flame else Color.White
+                            )
                         }
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    IconButton(onClick = {
-                        touchControls()
-                        isFullscreen = !isFullscreen
-                    }) {
-                        Icon(
-                            if (isFullscreen) Icons.Outlined.FullscreenExit
-                            else Icons.Outlined.Fullscreen,
-                            contentDescription = if (isFullscreen) {
-                                stringResource(R.string.exit_fullscreen)
-                            } else {
-                                stringResource(R.string.enter_fullscreen)
-                            },
-                            tint = Color.White
-                        )
-                    }
-                    // More (⋮) — top-right last control
-                    IconButton(onClick = {
-                        touchControls()
-                        showMoreMenu = !showMoreMenu
-                    }) {
-                        Icon(
-                            Icons.Filled.MoreVert,
-                            contentDescription = stringResource(R.string.more),
-                            tint = if (showMoreMenu) Flame else Color.White
-                        )
+                        if (showMoreMenu) {
+                            val yOff = with(density) { 46.dp.roundToPx() }
+                            Popup(
+                                alignment = Alignment.TopEnd,
+                                offset = IntOffset(0, yOff),
+                                onDismissRequest = { showMoreMenu = false },
+                                properties = PopupProperties(
+                                    focusable = true,
+                                    dismissOnClickOutside = true,
+                                    dismissOnBackPress = true,
+                                    clippingEnabled = false
+                                )
+                            ) {
+                                AnimatedVisibility(
+                                    visible = true,
+                                    enter = fadeIn(tween(180)) + slideInVertically(
+                                        animationSpec = tween(220),
+                                        initialOffsetY = { -it / 5 }
+                                    ),
+                                    exit = fadeOut(tween(120))
+                                ) {
+                                    MoreGlassMenu(
+                                        resizeMode = resizeMode,
+                                        speed = speed,
+                                        onFit = {
+                                            touchControls()
+                                            resizeMode = (resizeMode + 1) % 3
+                                        },
+                                        onPip = {
+                                            touchControls()
+                                            showMoreMenu = false
+                                            runCatching { activity?.enterPictureInPictureMode() }
+                                        },
+                                        onRotate = {
+                                            touchControls()
+                                            isFullscreen = !isFullscreen
+                                        },
+                                        onCast = {
+                                            touchControls()
+                                            castHint = true
+                                        },
+                                        onSpeed = {
+                                            touchControls()
+                                            showMoreMenu = false
+                                            showSpeedSheet = true
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-            }
-
-            // More menu — floating glass panel (fade + slide up), top-right
-            if (showMoreMenu) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { showMoreMenu = false }
-                )
-            }
-            AnimatedVisibility(
-                visible = showMoreMenu && controlsVisible,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(top = 52.dp, end = 10.dp),
-                enter = fadeIn(tween(180)) + slideInVertically(
-                    animationSpec = tween(220),
-                    initialOffsetY = { it / 3 }
-                ),
-                exit = fadeOut(tween(140)) + slideOutVertically(
-                    animationSpec = tween(160),
-                    targetOffsetY = { it / 4 }
-                )
-            ) {
-                MoreGlassMenu(
-                    resizeMode = resizeMode,
-                    speed = speed,
-                    onFit = {
-                        touchControls()
-                        resizeMode = (resizeMode + 1) % 3
-                    },
-                    onPip = {
-                        touchControls()
-                        showMoreMenu = false
-                        runCatching { activity?.enterPictureInPictureMode() }
-                    },
-                    onRotate = {
-                        touchControls()
-                        isFullscreen = !isFullscreen
-                    },
-                    onCast = {
-                        touchControls()
-                        castHint = true
-                    },
-                    onSpeed = {
-                        touchControls()
-                        showMoreMenu = false
-                        showSpeedSheet = true
-                    }
-                )
             }
 
             // Lock — left edge, vertically centered (circular glass)
@@ -832,6 +836,8 @@ fun PlayerScreen(
                             locked = true
                             controlsVisible = false
                             showMoreMenu = false
+                            lockIconVisible = true
+                            lastLockInteraction = System.currentTimeMillis()
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -973,54 +979,74 @@ fun PlayerScreen(
                         }
                     )
                     Spacer(Modifier.height(8.dp))
-                    // Bottom controls: Audio · Subtitles · Server · Episodes · Quality
+                    // Bottom: 3 left · middle space · 3 right (incl. Settings)
                     Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        BottomAction(
-                            icon = Icons.AutoMirrored.Filled.VolumeUp,
-                            label = stringResource(R.string.audio_tracks),
-                            tint = if (currentType == "dub") Flame else Color.White
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            touchControls()
-                            showMoreMenu = false
-                            showAudioSheet = true
+                            BottomAction(
+                                icon = Icons.AutoMirrored.Filled.VolumeUp,
+                                label = stringResource(R.string.audio_tracks),
+                                tint = if (currentType == "dub") Flame else Color.White
+                            ) {
+                                touchControls()
+                                showMoreMenu = false
+                                showAudioSheet = true
+                            }
+                            BottomAction(
+                                icon = Icons.Outlined.ClosedCaption,
+                                label = stringResource(R.string.subtitles),
+                                tint = if (trackState.subtitleTracks.any { it.isSelected }) Flame else Color.White
+                            ) {
+                                touchControls()
+                                showMoreMenu = false
+                                showTrackSheet = true
+                            }
+                            BottomAction(
+                                icon = Icons.Filled.Dns,
+                                label = stringResource(R.string.server),
+                                tint = if (selectedServerName != null) Flame else Color.White
+                            ) {
+                                touchControls()
+                                showMoreMenu = false
+                                showServerSheet = true
+                            }
                         }
-                        BottomAction(
-                            icon = Icons.Outlined.ClosedCaption,
-                            label = stringResource(R.string.subtitles),
-                            tint = if (trackState.subtitleTracks.any { it.isSelected }) Flame else Color.White
+                        Spacer(Modifier.weight(1f))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            touchControls()
-                            showMoreMenu = false
-                            showTrackSheet = true
-                        }
-                        BottomAction(
-                            icon = Icons.Filled.Dns,
-                            label = stringResource(R.string.server),
-                            tint = if (selectedServerName != null) Flame else Color.White
-                        ) {
-                            touchControls()
-                            showMoreMenu = false
-                            showServerSheet = true
-                        }
-                        BottomAction(
-                            icon = Icons.Outlined.ViewAgenda,
-                            label = stringResource(R.string.episodes)
-                        ) {
-                            touchControls()
-                            showMoreMenu = false
-                            showEpisodeSheet = true
-                        }
-                        BottomAction(
-                            icon = Icons.Outlined.HighQuality,
-                            label = stringResource(R.string.quality)
-                        ) {
-                            touchControls()
-                            showMoreMenu = false
-                            showQualitySheet = true
+                            BottomAction(
+                                icon = Icons.Outlined.ViewAgenda,
+                                label = stringResource(R.string.episodes)
+                            ) {
+                                touchControls()
+                                showMoreMenu = false
+                                showEpisodeSheet = true
+                            }
+                            BottomAction(
+                                icon = Icons.Outlined.HighQuality,
+                                label = stringResource(R.string.quality)
+                            ) {
+                                touchControls()
+                                showMoreMenu = false
+                                showQualitySheet = true
+                            }
+                            BottomAction(
+                                icon = Icons.Filled.Settings,
+                                label = stringResource(R.string.settings)
+                            ) {
+                                touchControls()
+                                showMoreMenu = false
+                                showSettings = true
+                            }
                         }
                     }
                 }
@@ -1096,12 +1122,17 @@ fun PlayerScreen(
             }
         }
 
-        // Locked unlock — same left-edge mid position, circular glass
-        if (locked) {
+        // Locked unlock — left-edge mid; only visible after tap, auto-hides
+        AnimatedVisibility(
+            visible = locked && lockIconVisible,
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 10.dp),
+            enter = fadeIn() + scaleIn(initialScale = 0.9f),
+            exit = fadeOut() + scaleOut(targetScale = 0.9f)
+        ) {
             Box(
                 Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 10.dp)
                     .size(44.dp)
                     .shadow(8.dp, CircleShape)
                     .clip(CircleShape)
@@ -1109,6 +1140,7 @@ fun PlayerScreen(
                     .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
                     .clickable {
                         locked = false
+                        lockIconVisible = false
                         touchControls()
                     },
                 contentAlignment = Alignment.Center
@@ -1159,6 +1191,42 @@ fun PlayerScreen(
     }
 
     // ---- Sheets -----------------------------------------------------------
+    if (showSettings) {
+        SettingsSheet(
+            speed = speed,
+            resizeMode = resizeMode,
+            currentType = currentType,
+            trackState = trackState,
+            onSpeed = {
+                showSettings = false
+                showSpeedSheet = true
+            },
+            onQuality = {
+                showSettings = false
+                showQualitySheet = true
+            },
+            onSubs = {
+                showSettings = false
+                showTrackSheet = true
+            },
+            onAudio = {
+                showSettings = false
+                showAudioSheet = true
+            },
+            onResizeCycle = { resizeMode = (resizeMode + 1) % 3 },
+            onType = { next ->
+                currentType = next
+                selectedServerId = null
+                selectedServerName = null
+                streamUrl = null
+                resolveError = false
+                loadKey++
+                showSettings = false
+            },
+            onDismiss = { showSettings = false }
+        )
+    }
+
     if (showServerSheet) {
         ServerSheet(
             servers = serverOptions,
