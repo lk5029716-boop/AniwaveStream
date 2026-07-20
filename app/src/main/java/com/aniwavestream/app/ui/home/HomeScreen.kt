@@ -202,6 +202,7 @@ fun HomeScreen(
                                 activeDayIndex = state.scheduleDayIndex,
                                 onDay = { viewModel.setScheduleDayIndex(it) },
                                 shows = state.schedule,
+                                maxRows = 5,
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                             Spacer(Modifier.height(8.dp))
