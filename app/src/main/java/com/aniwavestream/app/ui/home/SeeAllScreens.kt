@@ -41,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -399,7 +400,7 @@ fun WeeklyScheduleScreen(
     onAnimeClick: (Anime) -> Unit,
     onBack: () -> Unit
 ) {
-    val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(repository, remember { UserLibraryStore() }))
+    val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(repository, UserLibraryStore(LocalContext.current)))
     val state by vm.state.collectAsState()
     var activeDayIndex by remember { mutableIntStateOf(state.scheduleDayIndex) }
     val day = ScheduleDays.getOrElse(activeDayIndex) { ScheduleDays[0] }
