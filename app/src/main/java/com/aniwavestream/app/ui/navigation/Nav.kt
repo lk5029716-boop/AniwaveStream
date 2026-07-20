@@ -29,12 +29,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -66,7 +64,6 @@ import com.aniwavestream.app.ui.theme.Void
 import com.aniwavestream.app.viewmodel.HomeViewModel
 import com.aniwavestream.app.viewmodel.LibraryViewModel
 import com.aniwavestream.app.viewmodel.SeeAllViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -258,34 +255,18 @@ fun AniwaveNavHost(
             ) { entry ->
                 val id = entry.arguments?.getInt("id") ?: return@composable
                 val ep = entry.arguments?.getInt("ep") ?: 1
-                val context = LocalContext.current
-                val scope = rememberCoroutineScope()
-                androidx.compose.runtime.LaunchedEffect(id, ep) {
-                    scope.launch {
-                        try {
-                            val title = withContext(Dispatchers.IO) {
-                                repository.detail(id).getOrNull()?.title
-                            } ?: return@launch
-                            val stream = withContext(Dispatchers.IO) {
-                                runCatching { AniwavesApi.resolveStream(title, ep, "sub") }.getOrNull()
-                            }
-                            val intent = Intent(context, Class.forName("ani.dantotsu.media.anime.ExoplayerView")).apply {
-                                putExtra(EXTRA_TITLE, title)
-                                putExtra(EXTRA_EPISODE, ep)
-                                putExtra(EXTRA_STREAM, stream)
-                            }
-                            context.startActivity(intent)
-                            nav.popBackStack()
-                        } catch (e: Exception) {
-                            // Never let a launch failure crash the whole app; surface it and
-                            // return to the detail screen.
-                            android.widget.Toast.makeText(
-                                context, "Player failed to open: ${e.message}", android.widget.Toast.LENGTH_LONG
-                            ).show()
-                            nav.popBackStack()
+                PlayerScreen(
+                    animeId = id,
+                    episode = ep,
+                    repository = repository,
+                    library = library,
+                    onBack = { nav.popBackStack() },
+                    onEpisodeChange = { next ->
+                        nav.navigate(Route.Player.create(id, next)) {
+                            popUpTo(Route.Player.create(id, ep)) { inclusive = true }
                         }
                     }
-                }
+                )
             }
         }
     }
