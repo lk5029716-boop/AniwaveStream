@@ -180,6 +180,7 @@ fun PlayerScreen(
     var currentType by remember(animeId, episode) { mutableStateOf("sub") }
 
     var streamUrl by remember(animeId, episode) { mutableStateOf<String?>(null) }
+    var subtitleTracks by remember(animeId, episode) { mutableStateOf<List<AniwavesApi.SubtitleTrack>>(emptyList()) }
     var resolveError by remember(animeId, episode) { mutableStateOf(false) }
     var errorDetail by remember(animeId, episode) { mutableStateOf<String?>(null) }
     var loadKey by remember { mutableIntStateOf(0) }
@@ -278,7 +279,8 @@ fun PlayerScreen(
             val slug: String?,
             val servers: List<Pair<String, String>>,
             val url: String?,
-            val serverName: String?
+            val serverName: String?,
+            val subtitles: List<AniwavesApi.SubtitleTrack>
         )
         val pack = withContext(Dispatchers.IO) {
             runCatching {
@@ -287,19 +289,20 @@ fun PlayerScreen(
                 AniwavesApi.warmUp()
                 val slug = AniwavesApi.resolveSlug(title)
                 if (slug.isNullOrBlank()) {
-                    return@runCatching ResolvePack(null, emptyList(), null, null)
+                    return@runCatching ResolvePack(null, emptyList(), null, null, emptyList())
                 }
                 val servers = AniwavesApi.servers(slug, episode, currentType)
                 if (!preferredId.isNullOrBlank()) {
-                    val url = AniwavesApi.streamUrl(preferredId)
+                    // Direct server pick: resolve full (url + subtitles) for that server.
+                    val f = AniwavesApi.resolveOneFull(preferredId)
                     val name = servers.firstOrNull { it.first == preferredId }?.second
-                    ResolvePack(slug, servers, url, name)
+                    ResolvePack(slug, servers, f?.m3u8, name, f?.subtitles ?: emptyList())
                 } else {
-                    val url = AniwavesApi.resolveStream(title, episode, currentType)
-                    ResolvePack(slug, servers, url, null)
+                    val full = AniwavesApi.resolveStreamFull(title, episode, currentType)
+                    ResolvePack(slug, servers, full?.m3u8, full?.subtitles, null)
                 }
             }.getOrElse { ex ->
-                ResolvePack(null, emptyList(), null, null).also {
+                ResolvePack(null, emptyList(), null, null, emptyList()).also {
                     errorDetail = ex.message
                 }
             }
@@ -307,6 +310,7 @@ fun PlayerScreen(
         animeSlug = pack.slug
         serverOptions = pack.servers
         if (!pack.serverName.isNullOrBlank()) selectedServerName = pack.serverName
+        subtitleTracks = pack.subtitles
         if (!pack.url.isNullOrBlank()) {
             streamUrl = pack.url
             resolveError = false
@@ -336,7 +340,7 @@ fun PlayerScreen(
             attempt++
             runCatching {
                 safePlayer {
-                    setMediaItem(PlayerModule.buildMediaItem(url))
+                    setMediaItem(PlayerModule.buildMediaItem(url, subtitles = subtitleTracks))
                     setPlaybackSpeed(speed)
                     prepare()
                     play()
