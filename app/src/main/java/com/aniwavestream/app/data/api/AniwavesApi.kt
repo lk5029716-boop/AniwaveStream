@@ -90,7 +90,72 @@ object AniwavesApi {
         }
     }
 
-    /** Resolve a playable .m3u8 URL for a server id, or null. */
+    /** A resolved stream plus its (external) subtitle tracks. */
+    data class SubtitleTrack(
+        val lang: String,   // "eng"
+        val label: String,  // "ENG"
+        val url: String     // already proxied through /api/proxy
+    )
+
+    data class StreamResult(
+        val m3u8: String?,
+        val subtitles: List<SubtitleTrack>
+    )
+
+    /**
+     * Parse a /api/stream JSON object into a StreamResult. Subtitles are returned
+     * by the backend for BOTH sub and dub streams as raw CDN .srt URLs (CORS-locked,
+     * same as the stream), so we route each through /api/proxy with the echovideo
+     * referer — this applies to every server, regardless of type.
+     */
+    private fun parseStreamRoot(root: JsonObject): StreamResult {
+        val m3u8 = root["proxiedM3u8"]?.jsonPrimitive?.content?.let { "$BASE$it" }
+        val subs = (root["subtitles"]?.jsonArray ?: emptyList()).mapNotNull { e ->
+            val o = e.jsonObject
+            val raw = o["url"]?.jsonPrimitive?.content ?: return@mapNotNull null
+            val proxied = "$BASE/api/proxy?url=${enc(raw)}&referer=${enc("https://play.echovideo.ru/")}"
+            SubtitleTrack(
+                lang = o["lang"]?.jsonPrimitive?.content ?: "unk",
+                label = o["label"]?.jsonPrimitive?.content ?: "Unknown",
+                url = proxied
+            )
+        }
+        return StreamResult(m3u8, subs)
+    }
+
+    /**
+     * Full resolution that returns the m3u8 AND any subtitle tracks for the given
+     * type (sub or dub). Tries servers in preference order and returns the first
+     * that yields a playable m3u8, with its subtitles attached.
+     */
+    fun resolveStreamFull(title: String, episode: Int, type: String = "sub"): StreamResult? {
+        val slug = resolveSlug(title) ?: return null
+        val all = servers(slug, episode, type)
+        if (all.isEmpty()) return null
+        val preferred = all.sortedBy { rank(it.second) }
+        for ((id, name) in preferred) {
+            try {
+                val root = json.parseToJsonElement(get("/api/stream?serverId=${enc(id)}")).jsonObject
+                val result = parseStreamRoot(root)
+                if (result.m3u8 == null) continue
+                Log.i("AniwavesApi", "server $name: ${result.subtitles.size} subtitle track(s)")
+                return result
+            } catch (e: Exception) {
+                Log.w("AniwavesApi", "server $name failed: ${e.message}")
+            }
+        }
+        return null
+    }
+
+    /** Resolve one specific server id to a StreamResult (url + subtitles), or null. */
+    fun resolveOneFull(serverId: String): StreamResult? {
+        return runCatching {
+            val root = json.parseToJsonElement(get("/api/stream?serverId=${enc(serverId)}")).jsonObject
+            parseStreamRoot(root)
+        }.getOrNull()
+    }
+
+    /** Resolve a playable .m3u8 URL for a server id, or null (subtitles dropped). */
     fun streamUrl(serverId: String): String? {
         val root: JsonObject = json.parseToJsonElement(get("/api/stream?serverId=${enc(serverId)}")).jsonObject
         // Per backend design (src/routes/anime.ts): the raw CDN m3u8 is CORS-locked
