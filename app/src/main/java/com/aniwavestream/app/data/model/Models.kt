@@ -114,7 +114,24 @@ data class AlData(
 @Serializable
 data class AlPage(
     val media: List<AlMedia> = emptyList(),
+    val airingSchedules: List<AlAiring> = emptyList(),
     val pageInfo: AlPageInfo? = null
+)
+
+@Serializable
+data class AlAiring(
+    val episode: Int? = null,
+    val airingAt: Long? = null,
+    val media: AlAiringMedia? = null
+)
+
+@Serializable
+data class AlAiringMedia(
+    val id: Int = 0,
+    val title: AlTitle? = null,
+    val coverImage: AlCoverImage? = null,
+    val episodes: Int? = null,
+    val status: String? = null
 )
 
 @Serializable
@@ -343,6 +360,22 @@ fun CharacterEdgeDto.toCharacter(): Character? {
     )
 }
 
+/** One real airing entry from AniList AiringSchedule, grouped by weekday in-app. */
+@Serializable
+data class AiringSchedule(
+    val id: Int = 0,
+    val title: String = "",
+    val cover: String? = null,
+    val episode: Int = 0,
+    val totalEpisodes: Int? = null,
+    val airingAt: Long = 0L,
+    val status: String? = null
+)
+
+/** Sort airing entries by their broadcast time, earliest first. */
+fun List<AiringSchedule>.sortedByAiring(): List<AiringSchedule> =
+    sortedBy { it.airingAt }
+
 /** Airing anime for a weekday (Jikan schedules). */
 val ScheduleDays = listOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
@@ -350,46 +383,33 @@ val ScheduleDays = listOf("monday", "tuesday", "wednesday", "thursday", "friday"
 data class DayAiring(
     val time: String,      // "23:00"
     val title: String,
-    val status: String     // "Hype Airing", "New", "Final"
+    val status: String,    // "Hype Airing", "New", "Final"
+    val episode: Int = 0   // released episode number (0 = unknown)
 )
 
-/** Demo schedule shown when the live Jikan call returns nothing. */
-val DemoSchedule: Map<String, List<DayAiring>> = mapOf(
-    "monday" to listOf(
-        DayAiring("23:00", "Solo Leveling", "Hype Airing"),
-        DayAiring("23:30", "Dr. Stone: Science Future", "New"),
-        DayAiring("24:00", "One Punch Man S3", "Hype Airing")
-    ),
-    "tuesday" to listOf(
-        DayAiring("22:00", "Jujutsu Kaisen", "Hype Airing"),
-        DayAiring("23:00", "Blue Lock S2", "New"),
-        DayAiring("24:30", "Mushoku Tensei S2", "Final")
-    ),
-    "wednesday" to listOf(
-        DayAiring("21:00", "Frieren", "Hype Airing"),
-        DayAiring("22:30", "Spy x Family S3", "New"),
-        DayAiring("23:00", "Chainsaw Man S2", "Hype Airing")
-    ),
-    "thursday" to listOf(
-        DayAiring("22:00", "Re:ZERO S3", "Hype Airing"),
-        DayAiring("23:30", "Oshi no Ko S2", "Final"),
-        DayAiring("24:00", "Kaiju No. 8 S2", "New")
-    ),
-    "friday" to listOf(
-        DayAiring("23:00", "Demon Slayer: Hashira", "Hype Airing"),
-        DayAiring("24:00", "Tokyo Ghoul:re", "New")
-    ),
-    "saturday" to listOf(
-        DayAiring("17:00", "My Hero Academia S7", "Hype Airing"),
-        DayAiring("18:30", "Black Clover", "New"),
-        DayAiring("22:00", "Haikyuu!! Final", "Final")
-    ),
-    "sunday" to listOf(
-        DayAiring("21:00", "Bleach: TYBW", "Hype Airing"),
-        DayAiring("22:30", "Naruto: Two Blue Vortex", "New"),
-        DayAiring("23:00", "One Piece", "Hype Airing")
-    )
-)
+/**
+ * REAL weekly schedule, grouped by weekday from live AniList AiringSchedule data.
+ * Each AiringSchedule already carries its exact broadcast time + episode number,
+ * so we can show "EP x" and a status badge per show — no mock data.
+ */
+fun buildRealSchedule(shows: List<AiringSchedule>): Map<String, List<DayAiring>> {
+    val cal = java.util.Calendar.getInstance()
+    val byDay = ScheduleDays.associateWith { mutableListOf<DayAiring>() }
+    for (s in shows.sortedByAiring()) {
+        cal.timeInMillis = s.airingAt * 1000L
+        val dayName = ScheduleDays.getOrNull(cal.get(java.util.Calendar.DAY_OF_WEEK) - 2) ?: continue
+        val hh = cal.get(java.util.Calendar.HOUR_OF_DAY)
+        val mm = cal.get(java.util.Calendar.MINUTE)
+        val time = "%02d:%02d".format(hh, mm)
+        val status = when {
+            s.status.equals("FINISHED", true) -> "Final"
+            s.status.equals("RELEASING", true) && (s.totalEpisodes == null || s.episode < (s.totalEpisodes ?: Int.MAX_VALUE)) -> "Hype Airing"
+            else -> "New"
+        }
+        byDay[dayName]?.add(DayAiring(time, s.title, status, s.episode))
+    }
+    return byDay
+}
 
 /** Demo anime used to fill New Releases / Upcoming when the live API is empty. */
 val DemoNewReleases: List<Anime> = listOf(
