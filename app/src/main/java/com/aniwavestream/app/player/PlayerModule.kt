@@ -3,10 +3,12 @@
 package com.aniwavestream.app.player
 
 import android.content.Context
+import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.database.StandaloneDatabaseProvider
+import com.aniwavestream.app.data.api.AniwavesApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
@@ -117,11 +119,25 @@ object PlayerModule {
     fun buildMediaItem(
         streamUrl: String,
         drmLicenseUrl: String? = null,
-        drmHeaders: Map<String, String> = emptyMap()
+        drmHeaders: Map<String, String> = emptyMap(),
+        subtitles: List<AniwavesApi.SubtitleTrack> = emptyList()
     ): MediaItem {
         val builder = MediaItem.Builder()
             .setUri(streamUrl)
             .setMimeType(MimeTypes.APPLICATION_M3U8)
+        if (subtitles.isNotEmpty()) {
+            val mime = MimeTypes.APPLICATION_SUBRIP
+            builder.setSubtitleConfigurations(
+                subtitles.map { s ->
+                    MediaItem.SubtitleConfiguration.Builder(s.url.toUri())
+                        .setMimeType(mime)
+                        .setLanguage(s.lang)
+                        .setLabel(s.label)
+                        .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                        .build()
+                }
+            )
+        }
         if (!drmLicenseUrl.isNullOrBlank()) {
             builder.setDrmConfiguration(
                 MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID)
