@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
@@ -67,8 +68,10 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -1447,77 +1450,114 @@ fun AnivaveScheduleCard(
     }
 }
 
+/**
+ * Diagonal parallelogram clip for schedule-row cover art.
+ * Points (as % of the art container): TL 38%,0 -> TR 100%,0 -> BR 100%,100% -> BL 8%,100%.
+ * Only the clip path is slanted — the image bitmap itself is NOT skewed/rotated.
+ */
+private val SlantedArtShape = GenericShape { size: Size, _ ->
+    val w = size.width
+    val h = size.height
+    moveTo(w * 0.38f, 0f)
+    lineTo(w, 0f)
+    lineTo(w, h)
+    lineTo(w * 0.08f, h)
+    close()
+}
+
 /** A single timed broadcast row used inside the Weekly Schedule card AND the full schedule screen. */
 @Composable
 fun ScheduleRow(
     s: DayAiring,
     onItem: () -> Unit = {}
 ) {
-    Row(
+    Box(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(SurfaceRaised.copy(alpha = 0.92f))
             .clickable { onItem() }
-            .padding(12.dp, 12.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        // Broadcast time
-        Text(
-            s.time,
-            color = Flame,
-            fontFamily = PlexMono,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.width(46.dp)
-        )
-        Column(Modifier.weight(1f)) {
-            Text(
-                s.title,
-                color = TextPrimary,
-                fontSize = 13.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(Modifier.height(5.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                // Solid EP badge
-                if (s.episode > 0) {
-                    Box(
-                        Modifier
-                            .background(Flame, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 7.dp, vertical = 2.5.dp)
-                    ) {
-                        Text(
-                            "EP ${s.episode}",
-                            color = Void,
-                            fontFamily = PlexMono,
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-                // Status chip (colored solid box)
-                val (chipBg, chipFg) = when {
-                    s.status.contains("Hype", true) -> Flame to Void
-                    s.status.contains("New", true) -> Cool to Void
-                    s.status.contains("Final", true) -> Gold to Void
-                    else -> SurfaceRaised to TextSecondary
-                }
+        // --- Trailing slanted cover art (right edge, ~168dp wide) ---
+        if (!s.cover.isNullOrBlank()) {
+            Box(
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(168.dp)
+                    .fillMaxHeight()
+            ) {
+                // Clipped poster (crop biased to top so faces aren't cut off)
+                AsyncImage(
+                    model = s.cover,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alignment = s.posterFocal,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(SlantedArtShape)
+                )
+                // Gradient blend: row bg (opaque) -> transparent, softens the hard cut.
                 Box(
                     Modifier
-                        .background(chipBg, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 7.dp, vertical = 2.5.dp)
-                ) {
-                    Text(
-                        s.status.uppercase(),
-                        color = chipFg,
-                        fontFamily = PlexMono,
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.4.sp
-                    )
+                        .fillMaxSize()
+                        .clip(SlantedArtShape)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    SurfaceRaised.copy(alpha = 0.92f),
+                                    Color.Transparent
+                                ),
+                                startX = 0f,
+                                endX = 168.dp.value * 0.62f
+                            )
+                        )
+                )
+            }
+        }
+
+        // --- Foreground content (time, title, EP badge) unchanged ---
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(12.dp, 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Broadcast time
+            Text(
+                s.time,
+                color = Flame,
+                fontFamily = PlexMono,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.width(46.dp)
+            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    s.title,
+                    color = TextPrimary,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(5.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Solid EP badge
+                    if (s.episode > 0) {
+                        Box(
+                            Modifier
+                                .background(Flame, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 7.dp, vertical = 2.5.dp)
+                        ) {
+                            Text(
+                                "EP ${s.episode}",
+                                color = Void,
+                                fontFamily = PlexMono,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
         }
