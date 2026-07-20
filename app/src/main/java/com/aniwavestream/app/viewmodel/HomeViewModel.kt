@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.ContinueItem
 import com.aniwavestream.app.data.model.AiringSchedule
+import com.aniwavestream.app.data.model.buildRealSchedule
 import com.aniwavestream.app.data.model.DayAiring
 import com.aniwavestream.app.data.model.DemoNewReleases
 import com.aniwavestream.app.data.model.DemoNewReleaseEpisodes
