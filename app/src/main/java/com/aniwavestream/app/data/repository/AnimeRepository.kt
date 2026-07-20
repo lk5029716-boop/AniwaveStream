@@ -273,7 +273,7 @@ class AnimeRepository(
 private const val MEDIA_FIELDS = """
     id idMal title { romaji english native }
     coverImage { extraLarge large medium color }
-    bannerImage averageScore episodes seasonYear format status description
+    bannerImage averageScore episodes nextAiringEpisode { episode } seasonYear format status description
     genres studios(isMain: true) { nodes { name } }
 """
 
