@@ -1,13 +1,13 @@
 package com.aniwavestream.app.ui.navigation
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.aniwavestream.app.ui.theme.Hairline
-import com.aniwavestream.app.ui.theme.Void
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
@@ -27,9 +27,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -39,6 +44,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.aniwavestream.app.data.api.AniwavesApi
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.repository.UserLibraryStore
 import com.aniwavestream.app.ui.browse.BrowseScreen
@@ -48,17 +54,29 @@ import com.aniwavestream.app.ui.home.SeeAllKind
 import com.aniwavestream.app.ui.home.SeeAllScreen
 import com.aniwavestream.app.ui.home.WeeklyScheduleScreen
 import com.aniwavestream.app.ui.mylist.MyListScreen
-import com.aniwavestream.app.ui.player.PlayerScreen
 import com.aniwavestream.app.ui.profile.ProfileScreen
 import com.aniwavestream.app.ui.search.SearchScreen
 import com.aniwavestream.app.ui.theme.Background
+import com.aniwavestream.app.ui.theme.Hairline
 import com.aniwavestream.app.ui.theme.OrangePrimary
 import com.aniwavestream.app.ui.theme.SurfaceDark
 import com.aniwavestream.app.ui.theme.TextMuted
 import com.aniwavestream.app.ui.theme.TextPrimary
+import com.aniwavestream.app.ui.theme.Void
 import com.aniwavestream.app.viewmodel.HomeViewModel
 import com.aniwavestream.app.viewmodel.LibraryViewModel
 import com.aniwavestream.app.viewmodel.SeeAllViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+// Extras consumed by the ported Dantotsu player (ani.dantotsu.media.anime.ExoplayerView).
+private const val EXTRA_TITLE = "aniwavestream.title"
+private const val EXTRA_EPISODE = "aniwavestream.episode"
+private const val EXTRA_STREAM = "aniwavestream.stream"
+private const val EXTRA_SUBTITLE_URL = "aniwavestream.subtitle_url"
+private const val EXTRA_SUBTITLE_LANG = "aniwavestream.subtitle_lang"
+private const val EXTRA_SUBTITLE_MIME = "aniwavestream.subtitle_mime"
 
 sealed class Route(val path: String) {
     data object Home : Route("home")
@@ -191,6 +209,7 @@ fun AniwaveNavHost(
             }
             composable(Route.WeeklySchedule.path) {
                 WeeklyScheduleScreen(
+                    repository = repository,
                     onAnimeClick = { openDetail(it.id) },
                     onBack = { nav.popBackStack() }
                 )
@@ -239,18 +258,34 @@ fun AniwaveNavHost(
             ) { entry ->
                 val id = entry.arguments?.getInt("id") ?: return@composable
                 val ep = entry.arguments?.getInt("ep") ?: 1
-                PlayerScreen(
-                    animeId = id,
-                    episode = ep,
-                    repository = repository,
-                    library = library,
-                    onBack = { nav.popBackStack() },
-                    onEpisodeChange = { next ->
-                        nav.navigate(Route.Player.create(id, next)) {
-                            popUpTo(Route.Player.create(id, ep)) { inclusive = true }
+                val context = LocalContext.current
+                val scope = rememberCoroutineScope()
+                androidx.compose.runtime.LaunchedEffect(id, ep) {
+                    scope.launch {
+                        try {
+                            val title = withContext(Dispatchers.IO) {
+                                repository.detail(id).getOrNull()?.title
+                            } ?: return@launch
+                            val stream = withContext(Dispatchers.IO) {
+                                runCatching { AniwavesApi.resolveStream(title, ep, "sub") }.getOrNull()
+                            }
+                            val intent = Intent(context, Class.forName("ani.dantotsu.media.anime.ExoplayerView")).apply {
+                                putExtra(EXTRA_TITLE, title)
+                                putExtra(EXTRA_EPISODE, ep)
+                                putExtra(EXTRA_STREAM, stream)
+                            }
+                            context.startActivity(intent)
+                            nav.popBackStack()
+                        } catch (e: Exception) {
+                            // Never let a launch failure crash the whole app; surface it and
+                            // return to the detail screen.
+                            android.widget.Toast.makeText(
+                                context, "Player failed to open: ${e.message}", android.widget.Toast.LENGTH_LONG
+                            ).show()
+                            nav.popBackStack()
                         }
                     }
-                )
+                }
             }
         }
     }
