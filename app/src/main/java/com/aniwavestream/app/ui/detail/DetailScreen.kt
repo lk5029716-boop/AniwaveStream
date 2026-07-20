@@ -132,7 +132,7 @@ fun DetailScreen(
         val inRange = if (epRanges.isEmpty() || !showDropdown) episodes
         else episodes.filter { it.number in selectedRangeStart..minOf(selectedRangeStart + 49, totalEps) }
         val searched = if (q.isEmpty()) inRange else inRange.filter { it.title.lowercase().contains(q) }
-        searched.take(24)
+        searched
     }
     var characters by remember { mutableStateOf<List<Character>>(emptyList()) }
     var related by remember { mutableStateOf<List<Anime>>(emptyList()) }
