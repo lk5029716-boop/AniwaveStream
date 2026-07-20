@@ -252,7 +252,9 @@ class AnimeRepository(
     suspend fun schedule(perPage: Int = 60): Result<List<AiringSchedule>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
-            val text = AniListApi.query(AIRING_Q) { int("per", perPage); int("window", 7 * 24 * 3600) }
+            val now = System.currentTimeMillis() / 1000L
+            val windowEnd = now + (7L * 24 * 3600) // next 7 days, in AniList unix-seconds
+            val text = AniListApi.query(AIRING_Q) { int("per", perPage); int("window", windowEnd.toInt()) }
             val resp = parse(text)
             resp.data?.Page?.airingSchedules?.mapNotNull { it.toAiring() } ?: emptyList()
         }
