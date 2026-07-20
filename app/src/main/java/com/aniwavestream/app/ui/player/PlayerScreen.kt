@@ -299,7 +299,7 @@ fun PlayerScreen(
                     ResolvePack(slug, servers, f?.m3u8, name, f?.subtitles ?: emptyList())
                 } else {
                     val full = AniwavesApi.resolveStreamFull(title, episode, currentType)
-                    ResolvePack(slug, servers, full?.m3u8, full?.subtitles, null)
+                    ResolvePack(slug, servers, full?.m3u8, null, full?.subtitles ?: emptyList())
                 }
             }.getOrElse { ex ->
                 ResolvePack(null, emptyList(), null, null, emptyList()).also {
