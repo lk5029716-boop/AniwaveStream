@@ -664,7 +664,7 @@ fun PlayerScreen(
         if (!locked) {
             // Cinematic top + bottom gradients always under chrome
             AnimatedVisibility(
-                visible = controlsVisible,
+                visible = controlsVisible && !showMoreMenu,
                 enter = fadeIn(tween(180)),
                 exit = fadeOut(tween(220)),
                 modifier = Modifier.fillMaxSize()
@@ -707,7 +707,7 @@ fun PlayerScreen(
 
             // ---- TOP BAR --------------------------------------------------
             AnimatedVisibility(
-                visible = controlsVisible,
+                visible = controlsVisible && !showMoreMenu,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding(),
@@ -748,8 +748,7 @@ fun PlayerScreen(
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
-                    // More (⋮) — Popup under the icon so it never clips/overlays chrome
-                    val density = LocalDensity.current
+                    // More (⋮)
                     Box {
                         IconButton(onClick = {
                             touchControls()
@@ -761,54 +760,14 @@ fun PlayerScreen(
                                 tint = if (showMoreMenu) Flame else Color.White
                             )
                         }
-                        if (showMoreMenu) {
-                            val yOff = with(density) { 46.dp.roundToPx() }
-                            Popup(
-                                alignment = Alignment.TopEnd,
-                                offset = IntOffset(0, yOff),
-                                onDismissRequest = { showMoreMenu = false },
-                                properties = PopupProperties(
-                                    focusable = true,
-                                    dismissOnClickOutside = true,
-                                    dismissOnBackPress = true,
-                                    clippingEnabled = false
-                                )
-                            ) {
-                                MoreGlassMenu(
-                                        resizeMode = resizeMode,
-                                        speed = speed,
-                                        onFit = {
-                                            touchControls()
-                                            resizeMode = (resizeMode + 1) % 3
-                                        },
-                                        onPip = {
-                                            touchControls()
-                                            showMoreMenu = false
-                                            runCatching { activity?.enterPictureInPictureMode() }
-                                        },
-                                        onRotate = {
-                                            touchControls()
-                                            isFullscreen = !isFullscreen
-                                        },
-                                        onCast = {
-                                            touchControls()
-                                            castHint = true
-                                        },
-                                        onSpeed = {
-                                            touchControls()
-                                            showMoreMenu = false
-                                            showSpeedSheet = true
-                                        }
-                                    )
-                            }
-                        }
+
                     }
                 }
             }
 
             // Lock — left edge, vertically centered (circular glass)
             AnimatedVisibility(
-                visible = controlsVisible,
+                visible = controlsVisible && !showMoreMenu,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .padding(start = 10.dp),
@@ -843,7 +802,7 @@ fun PlayerScreen(
 
             // ---- CENTER TRANSPORT (Netflix) -------------------------------
             AnimatedVisibility(
-                visible = controlsVisible,
+                visible = controlsVisible && !showMoreMenu,
                 modifier = Modifier.align(Alignment.Center),
                 enter = fadeIn() + scaleIn(initialScale = 0.92f),
                 exit = fadeOut() + scaleOut(targetScale = 0.92f)
@@ -919,7 +878,7 @@ fun PlayerScreen(
 
             // ---- BOTTOM BAR -----------------------------------------------
             AnimatedVisibility(
-                visible = controlsVisible,
+                visible = controlsVisible && !showMoreMenu,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding(),
@@ -1176,6 +1135,56 @@ fun PlayerScreen(
                     errorDetail = null
                     loadKey++
                     reloadKey++
+                }
+            )
+        }
+    }
+
+    // ---- More-menu overlay: scrim + solid popup -----------------------------
+    if (showMoreMenu) {
+        // Dark backdrop over the entire player (0.55 alpha). Blocks all touches.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.55f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { showMoreMenu = false }
+                )
+        )
+        // Solid elevated card, above the scrim, under the ⋮ icon.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(top = 56.dp, end = 4.dp),
+            contentAlignment = Alignment.TopEnd
+        ) {
+            MoreSolidMenu(
+                resizeMode = resizeMode,
+                speed = speed,
+                onFit = {
+                    touchControls()
+                    resizeMode = (resizeMode + 1) % 3
+                },
+                onPip = {
+                    touchControls()
+                    showMoreMenu = false
+                    runCatching { activity?.enterPictureInPictureMode() }
+                },
+                onRotate = {
+                    touchControls()
+                    isFullscreen = !isFullscreen
+                },
+                onCast = {
+                    touchControls()
+                    castHint = true
+                },
+                onSpeed = {
+                    touchControls()
+                    showMoreMenu = false
+                    showSpeedSheet = true
                 }
             )
         }
@@ -1645,6 +1654,64 @@ private fun MoreGlassMenu(
                 indication = null,
                 onClick = {}
             )
+    ) {
+        val fitLabel = when (resizeMode) {
+            0 -> stringResource(R.string.fit_screen)
+            1 -> stringResource(R.string.zoom)
+            else -> stringResource(R.string.fill)
+        }
+        MoreMenuRow(
+            icon = Icons.Outlined.AspectRatio,
+            label = fitLabel,
+            active = resizeMode != 0,
+            onClick = onFit
+        )
+        MoreMenuRow(
+            icon = Icons.Outlined.PictureInPictureAlt,
+            label = stringResource(R.string.picture_in_picture),
+            onClick = onPip
+        )
+        MoreMenuRow(
+            icon = Icons.Filled.ScreenRotation,
+            label = stringResource(R.string.rotate_screen),
+            onClick = onRotate
+        )
+        MoreMenuRow(
+            icon = Icons.Filled.Cast,
+            label = stringResource(R.string.cast),
+            onClick = onCast
+        )
+        MoreMenuRow(
+            icon = Icons.Outlined.Speed,
+            label = if (speed == 1f) {
+                stringResource(R.string.playback_speed)
+            } else {
+                "${stringResource(R.string.playback_speed)} · ${speed}x"
+            },
+            active = speed != 1f,
+            onClick = onSpeed
+        )
+    }
+}
+
+@Composable
+private fun MoreSolidMenu(
+    resizeMode: Int,
+    speed: Float,
+    onFit: () -> Unit,
+    onPip: () -> Unit,
+    onRotate: () -> Unit,
+    onCast: () -> Unit,
+    onSpeed: () -> Unit
+) {
+    val surface = Color(0xFF16181D)
+    Column(
+        Modifier
+            .widthIn(min = 210.dp, max = 250.dp)
+            .shadow(24.dp, RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(14.dp))
+            .background(surface)
+            .padding(vertical = 8.dp)
     ) {
         val fitLabel = when (resizeMode) {
             0 -> stringResource(R.string.fit_screen)
