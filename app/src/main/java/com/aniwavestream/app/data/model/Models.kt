@@ -387,7 +387,7 @@ data class DayAiring(
     val status: String,    // "Hype Airing", "New", "Final"
     val episode: Int = 0,  // released episode number (0 = unknown)
     val cover: String? = null,
-    val posterFocal: Alignment = Alignment.TopCenter // crop bias for the slanted art
+    val posterFocal: Alignment = Alignment(0f, -0.5f) // crop bias: top-third (object-position ~center 22%), overridable per title
 )
 
 /**
