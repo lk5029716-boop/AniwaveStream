@@ -93,10 +93,11 @@ object AniwavesApi {
     /** Resolve a playable .m3u8 URL for a server id, or null. */
     fun streamUrl(serverId: String): String? {
         val root: JsonObject = json.parseToJsonElement(get("/api/stream?serverId=${enc(serverId)}")).jsonObject
-        // proxiedM3u8 is already CORS-safe (rewritten through /api/proxy).
-        root["proxiedM3u8"]?.jsonPrimitive?.content?.let { return "$BASE$it" }
-        // Fallback to raw m3u8 if proxy field missing.
-        return root["m3u8"]?.jsonPrimitive?.content
+        // Prefer the RAW .m3u8 CDN url. The /api/proxy wrapper frequently 502s and,
+        // unlike a browser, Android ExoPlayer has no CORS restriction, so the proxy
+        // only adds a failure point. Fall back to proxiedM3u8 only if raw is absent.
+        root["m3u8"]?.jsonPrimitive?.content?.let { return it }
+        return root["proxiedM3u8"]?.jsonPrimitive?.content?.let { "$BASE$it" }
     }
 
     /**
