@@ -31,6 +31,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -100,6 +107,9 @@ fun DetailScreen(
 ) {
     var anime by remember { mutableStateOf<Anime?>(null) }
     var episodes by remember { mutableStateOf<List<Episode>>(emptyList()) }
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedRangeStart by remember { mutableStateOf(1) }
+    var rangeMenuExpanded by remember { mutableStateOf(false) }
     var characters by remember { mutableStateOf<List<Character>>(emptyList()) }
     var related by remember { mutableStateOf<List<Anime>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -360,11 +370,98 @@ fun DetailScreen(
                         Spacer(Modifier.height(20.dp))
                         CharacterRow(characters = characters)
                         Spacer(Modifier.height(20.dp))
-                        Text("Episodes", color = TextPrimary, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        val totalEps = (a.episodes ?: 0).coerceAtLeast(0)
+                        val epRanges = remember(totalEps) {
+                            if (totalEps <= 50) emptyList()
+                            else buildList {
+                                var start = 1
+                                while (start <= totalEps) {
+                                    val end = minOf(start + 49, totalEps)
+                                    add(start to end)
+                                    start = end + 1
+                                }
+                            }
+                        }
+                        val showDropdown = epRanges.size > 1
+                        val visibleEpisodes = remember(episodes, epRanges, selectedRangeStart, searchQuery) {
+                            val q = searchQuery.trim().lowercase()
+                            val inRange = if (epRanges.isEmpty() || !showDropdown) episodes
+                            else episodes.filter { it.number in selectedRangeStart..minOf(selectedRangeStart + 49, totalEps) }
+                            val searched = if (q.isEmpty()) inRange else inRange.filter { it.title.lowercase().contains(q) }
+                            searched.take(24)
+                        }
+
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Episodes (${totalEps})",
+                                color = TextPrimary,
+                                fontFamily = Bricolage,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                        }
                         Spacer(Modifier.height(8.dp))
+                        if (showDropdown) {
+                            val curLabel = "${selectedRangeStart}\u2013${minOf(selectedRangeStart + 49, totalEps)}"
+                            ExposedDropdownMenuBox(
+                                expanded = rangeMenuExpanded,
+                                onExpandedChange = { rangeMenuExpanded = it },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                TextField(
+                                    value = curLabel,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = rangeMenuExpanded) },
+                                    colors = ExposedDropdownMenuDefaults.textFieldColors(
+                                        containerColor = SurfaceRaised,
+                                        textColor = TextPrimary
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .menuAnchor()
+                                        .fillMaxWidth()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = rangeMenuExpanded,
+                                    onDismissRequest = { rangeMenuExpanded = false }
+                                ) {
+                                    epRanges.forEach { (s, e) ->
+                                        DropdownMenuItem(
+                                            text = { Text("${s}\u2013${e}", color = TextPrimary) },
+                                            onClick = {
+                                                selectedRangeStart = s
+                                                rangeMenuExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("Search episodes", color = TextMuted) },
+                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = TextMuted) },
+                            singleLine = true,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = SurfaceRaised,
+                                unfocusedContainerColor = SurfaceRaised,
+                                disabledContainerColor = SurfaceRaised,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                unfocusedIndicatorColor = Hairline,
+                                focusedIndicatorColor = Flame,
+                                cursorColor = Flame
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(10.dp))
                     }
                 }
-                items(episodes, key = { it.number }) { ep ->
+                items(visibleEpisodes, key = { it.number }) { ep ->
                     EpisodeCard(
                         episode = ep,
                         thumbnailUrl = a.bannerUrl ?: a.posterUrl,
