@@ -2,6 +2,8 @@ package com.aniwavestream.app.data.model
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -377,6 +379,16 @@ data class AiringSchedule(
 fun List<AiringSchedule>.sortedByAiring(): List<AiringSchedule> =
     sortedBy { it.airingAt }
 
+/** Default crop bias for the slanted schedule art: vertically centred on the
+ *  upper-third of the poster (object-position ~center 22%), so faces in tall
+ *  portrait sources aren't cut. Built via the public Alignment lambda ctor. */
+val PosterFocalDefault: Alignment = Alignment { size, space, _ ->
+    IntOffset(
+        x = (space.width - size.width) / 2,
+        y = ((space.height - size.height) * 0.22f).roundToInt()
+    )
+}
+
 /** Airing anime for a weekday (Jikan schedules). */
 val ScheduleDays = listOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
@@ -387,7 +399,7 @@ data class DayAiring(
     val status: String,    // "Hype Airing", "New", "Final"
     val episode: Int = 0,  // released episode number (0 = unknown)
     val cover: String? = null,
-    val posterFocal: Alignment = Alignment(0f, -0.5f) // crop bias: top-third (object-position ~center 22%), overridable per title
+    val posterFocal: Alignment = PosterFocalDefault // crop bias: top-third (object-position ~center 22%), overridable per title
 )
 
 /**
