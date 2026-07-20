@@ -115,7 +115,7 @@ class HomeViewModel(
     private fun loadSchedule(index: Int) {
         viewModelScope.launch {
             val day = ScheduleDays.getOrElse(index) { ScheduleDays[0] }
-            runCatching { repository.schedule() }
+            repository.schedule()
                 .onSuccess { list: List<AiringSchedule> ->
                     val map = if (list.isEmpty()) emptyMap() else buildRealSchedule(list)
                     _state.update { it.copy(schedule = map[day] ?: emptyList()) }
