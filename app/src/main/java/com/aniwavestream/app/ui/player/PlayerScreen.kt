@@ -51,14 +51,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.outlined.AspectRatio
@@ -138,14 +141,12 @@ import kotlin.math.roundToInt
 /**
  * Premium streaming player — Netflix / Crunchyroll inspired.
  *
- * Layout map (research-backed):
- *  TOP (gradient): back · title/ep · SUB|DUB · lock · fullscreen
- *  CENTER: prev ep · −10 · big play/pause · +10 · next ep
- *  BOTTOM (gradient): thin accent scrubber · time · icon row
- *    (subs · audio · quality · speed · episodes · PiP · aspect)
- *  EDGE gestures: left = brightness, right = volume, horizontal = scrub
- *  Double-tap L/R: ±10s with Netflix-style pulse badge
- *  CR-style Skip Intro pill + Next Episode near end
+ * Layout:
+ *  TOP: back · title/ep · SUB|DUB · fullscreen · More (⋮)
+ *  LEFT EDGE (mid): lock (circular glass)
+ *  CENTER: prev · −10 · play/pause · +10 · next
+ *  BOTTOM: scrubber · Audio · Subtitles · Server · Episodes · Quality
+ *  More menu: Fit · PiP · Rotate · Cast · Playback Speed
  */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
@@ -189,16 +190,24 @@ fun PlayerScreen(
     var durationMs by remember { mutableLongStateOf(0L) }
     var bufferedMs by remember { mutableLongStateOf(0L) }
 
-    var showSettings by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
     var showTrackSheet by remember { mutableStateOf(false) }
     var showAudioSheet by remember { mutableStateOf(false) }
     var showQualitySheet by remember { mutableStateOf(false) }
     var showEpisodeSheet by remember { mutableStateOf(false) }
     var showSpeedSheet by remember { mutableStateOf(false) }
+    var showServerSheet by remember { mutableStateOf(false) }
     var resizeMode by rememberSaveable { mutableIntStateOf(0) }
 
     val speeds = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
     var speed by remember { mutableFloatStateOf(1f) }
+
+    // Server picker state (wired to AniwavesApi)
+    var animeSlug by remember(animeId) { mutableStateOf<String?>(null) }
+    var serverOptions by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    var selectedServerId by remember(animeId, episode) { mutableStateOf<String?>(null) }
+    var selectedServerName by remember(animeId, episode) { mutableStateOf<String?>(null) }
+    var castHint by remember { mutableStateOf(false) }
 
     // Double-tap seek flash
     var seekFlash by remember { mutableStateOf<SeekFlash?>(null) }
@@ -250,23 +259,52 @@ fun PlayerScreen(
             .onFailure { resolveError = true }
     }
 
-    LaunchedEffect(animeId, episode, title, reloadKey) {
+    LaunchedEffect(animeId, episode, title, reloadKey, currentType, selectedServerId) {
         if (title.isBlank()) return@LaunchedEffect
         resolveError = false
         errorDetail = null
         isBuffering = true
-        val result = withContext(Dispatchers.IO) {
-            runCatching { AniwavesApi.resolveStream(title, episode, currentType) }
+        val preferredId = selectedServerId
+        data class ResolvePack(
+            val slug: String?,
+            val servers: List<Pair<String, String>>,
+            val url: String?,
+            val serverName: String?
+        )
+        val pack = withContext(Dispatchers.IO) {
+            runCatching {
+                val slug = AniwavesApi.resolveSlug(title)
+                if (slug.isNullOrBlank()) {
+                    return@runCatching ResolvePack(null, emptyList(), null, null)
+                }
+                val servers = AniwavesApi.servers(slug, episode, currentType)
+                if (!preferredId.isNullOrBlank()) {
+                    val url = AniwavesApi.streamUrl(preferredId)
+                    val name = servers.firstOrNull { it.first == preferredId }?.second
+                    ResolvePack(slug, servers, url, name)
+                } else {
+                    val url = AniwavesApi.resolveStream(title, episode, currentType)
+                    ResolvePack(slug, servers, url, null)
+                }
+            }.getOrElse { ex ->
+                ResolvePack(null, emptyList(), null, null).also {
+                    errorDetail = ex.message
+                }
+            }
         }
-        if (result.isSuccess && !result.getOrNull().isNullOrBlank()) {
-            streamUrl = result.getOrNull()
+        animeSlug = pack.slug
+        serverOptions = pack.servers
+        if (!pack.serverName.isNullOrBlank()) selectedServerName = pack.serverName
+        if (!pack.url.isNullOrBlank()) {
+            streamUrl = pack.url
             resolveError = false
         } else {
             streamUrl = null
             resolveError = true
             isBuffering = false
-            errorDetail = result.exceptionOrNull()?.message
-                ?: "Backend returned no stream for '${title}' ep $episode"
+            if (errorDetail.isNullOrBlank()) {
+                errorDetail = "Backend returned no stream for '${title}' ep $episode"
+            }
         }
     }
 
@@ -394,12 +432,13 @@ fun PlayerScreen(
                 isBuffering = state == Player.STATE_BUFFERING ||
                     (state == Player.STATE_IDLE && streamUrl != null && !resolveError)
             }
-            val sheetOpen = showSettings || showTrackSheet || showAudioSheet ||
-                showQualitySheet || showEpisodeSheet || showSpeedSheet
+            val sheetOpen = showMoreMenu || showTrackSheet || showAudioSheet ||
+                showQualitySheet || showEpisodeSheet || showSpeedSheet || showServerSheet
             if (isPlaying && controlsVisible && !sheetOpen &&
                 System.currentTimeMillis() - lastInteraction > 3500L
             ) {
                 controlsVisible = false
+                showMoreMenu = false
             }
         }
     }
@@ -434,17 +473,18 @@ fun PlayerScreen(
         runCatching { exoPlayer.seekTo(ms.coerceAtLeast(0)) }
     }
 
-    val anySheet = showSettings || showTrackSheet || showAudioSheet ||
-        showQualitySheet || showEpisodeSheet || showSpeedSheet
+    val anySheet = showMoreMenu || showTrackSheet || showAudioSheet ||
+        showQualitySheet || showEpisodeSheet || showSpeedSheet || showServerSheet
 
     BackHandler {
         when {
+            showMoreMenu -> showMoreMenu = false
             showEpisodeSheet -> showEpisodeSheet = false
+            showServerSheet -> showServerSheet = false
             showAudioSheet -> showAudioSheet = false
             showTrackSheet -> showTrackSheet = false
             showQualitySheet -> showQualitySheet = false
             showSpeedSheet -> showSpeedSheet = false
-            showSettings -> showSettings = false
             locked -> locked = false
             isFullscreen -> isFullscreen = false
             else -> onBack()
@@ -681,23 +721,13 @@ fun PlayerScreen(
                         onToggle = {
                             touchControls()
                             currentType = if (currentType == "sub") "dub" else "sub"
+                            selectedServerId = null
                             streamUrl = null
                             resolveError = false
                             loadKey++
                         }
                     )
                     Spacer(Modifier.width(4.dp))
-                    IconButton(onClick = {
-                        touchControls()
-                        locked = true
-                        controlsVisible = false
-                    }) {
-                        Icon(
-                            Icons.Filled.LockOpen,
-                            contentDescription = stringResource(R.string.lock_controls),
-                            tint = Color.White
-                        )
-                    }
                     IconButton(onClick = {
                         touchControls()
                         isFullscreen = !isFullscreen
@@ -713,6 +743,104 @@ fun PlayerScreen(
                             tint = Color.White
                         )
                     }
+                    // More (⋮) — top-right last control
+                    IconButton(onClick = {
+                        touchControls()
+                        showMoreMenu = !showMoreMenu
+                    }) {
+                        Icon(
+                            Icons.Filled.MoreVert,
+                            contentDescription = stringResource(R.string.more),
+                            tint = if (showMoreMenu) Flame else Color.White
+                        )
+                    }
+                }
+            }
+
+            // More menu — floating glass panel (fade + slide up), top-right
+            if (showMoreMenu) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { showMoreMenu = false }
+                )
+            }
+            AnimatedVisibility(
+                visible = showMoreMenu && controlsVisible,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 52.dp, end = 10.dp),
+                enter = fadeIn(tween(180)) + slideInVertically(
+                    animationSpec = tween(220),
+                    initialOffsetY = { it / 3 }
+                ),
+                exit = fadeOut(tween(140)) + slideOutVertically(
+                    animationSpec = tween(160),
+                    targetOffsetY = { it / 4 }
+                )
+            ) {
+                MoreGlassMenu(
+                    resizeMode = resizeMode,
+                    speed = speed,
+                    onFit = {
+                        touchControls()
+                        resizeMode = (resizeMode + 1) % 3
+                    },
+                    onPip = {
+                        touchControls()
+                        showMoreMenu = false
+                        runCatching { activity?.enterPictureInPictureMode() }
+                    },
+                    onRotate = {
+                        touchControls()
+                        isFullscreen = !isFullscreen
+                    },
+                    onCast = {
+                        touchControls()
+                        castHint = true
+                    },
+                    onSpeed = {
+                        touchControls()
+                        showMoreMenu = false
+                        showSpeedSheet = true
+                    }
+                )
+            }
+
+            // Lock — left edge, vertically centered (circular glass)
+            AnimatedVisibility(
+                visible = controlsVisible,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 10.dp),
+                enter = fadeIn() + scaleIn(initialScale = 0.9f),
+                exit = fadeOut() + scaleOut(targetScale = 0.9f)
+            ) {
+                Box(
+                    Modifier
+                        .size(44.dp)
+                        .shadow(8.dp, CircleShape)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.14f))
+                        .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
+                        .clickable {
+                            touchControls()
+                            locked = true
+                            controlsVisible = false
+                            showMoreMenu = false
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.LockOpen,
+                        contentDescription = stringResource(R.string.lock_controls),
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
 
@@ -845,74 +973,54 @@ fun PlayerScreen(
                         }
                     )
                     Spacer(Modifier.height(8.dp))
-                    // Icon row — CR / Netflix secondary controls
+                    // Bottom controls: Audio · Subtitles · Server · Episodes · Quality
                     Row(
                         Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        BottomAction(
-                            icon = Icons.Outlined.ClosedCaption,
-                            label = stringResource(R.string.subtitles),
-                            tint = if (trackState.subtitleTracks.any { it.isSelected }) Flame else Color.White
-                        ) {
-                            touchControls()
-                            showTrackSheet = true
-                        }
                         BottomAction(
                             icon = Icons.AutoMirrored.Filled.VolumeUp,
                             label = stringResource(R.string.audio_tracks),
                             tint = if (currentType == "dub") Flame else Color.White
                         ) {
                             touchControls()
+                            showMoreMenu = false
                             showAudioSheet = true
                         }
                         BottomAction(
-                            icon = Icons.Outlined.HighQuality,
-                            label = stringResource(R.string.quality)
+                            icon = Icons.Outlined.ClosedCaption,
+                            label = stringResource(R.string.subtitles),
+                            tint = if (trackState.subtitleTracks.any { it.isSelected }) Flame else Color.White
                         ) {
                             touchControls()
-                            showQualitySheet = true
+                            showMoreMenu = false
+                            showTrackSheet = true
                         }
                         BottomAction(
-                            icon = Icons.Outlined.Speed,
-                            label = if (speed == 1f) stringResource(R.string.speed) else "${speed}x",
-                            tint = if (speed != 1f) Flame else Color.White
+                            icon = Icons.Filled.Dns,
+                            label = stringResource(R.string.server),
+                            tint = if (selectedServerName != null) Flame else Color.White
                         ) {
                             touchControls()
-                            showSpeedSheet = true
+                            showMoreMenu = false
+                            showServerSheet = true
                         }
                         BottomAction(
                             icon = Icons.Outlined.ViewAgenda,
                             label = stringResource(R.string.episodes)
                         ) {
                             touchControls()
+                            showMoreMenu = false
                             showEpisodeSheet = true
                         }
                         BottomAction(
-                            icon = Icons.Outlined.PictureInPictureAlt,
-                            label = stringResource(R.string.pip_short)
+                            icon = Icons.Outlined.HighQuality,
+                            label = stringResource(R.string.quality)
                         ) {
                             touchControls()
-                            runCatching { activity?.enterPictureInPictureMode() }
-                        }
-                        BottomAction(
-                            icon = Icons.Outlined.AspectRatio,
-                            label = when (resizeMode) {
-                                0 -> stringResource(R.string.fit)
-                                1 -> stringResource(R.string.zoom)
-                                else -> stringResource(R.string.fill)
-                            }
-                        ) {
-                            touchControls()
-                            resizeMode = (resizeMode + 1) % 3
-                        }
-                        BottomAction(
-                            icon = Icons.Filled.Settings,
-                            label = stringResource(R.string.settings)
-                        ) {
-                            touchControls()
-                            showSettings = true
+                            showMoreMenu = false
+                            showQualitySheet = true
                         }
                     }
                 }
@@ -988,36 +1096,51 @@ fun PlayerScreen(
             }
         }
 
-        // Locked unlock chip
+        // Locked unlock — same left-edge mid position, circular glass
         if (locked) {
             Box(
                 Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(12.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color.Black.copy(alpha = 0.55f))
-                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(24.dp))
+                    .align(Alignment.CenterStart)
+                    .padding(start = 10.dp)
+                    .size(44.dp)
+                    .shadow(8.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.14f))
+                    .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
                     .clickable {
                         locked = false
                         touchControls()
-                    }
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    },
+                contentAlignment = Alignment.Center
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.Lock,
-                        contentDescription = stringResource(R.string.lock_controls),
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        stringResource(R.string.tap_to_unlock),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
+                Icon(
+                    Icons.Filled.Lock,
+                    contentDescription = stringResource(R.string.tap_to_unlock),
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        // Brief cast unavailable hint (no Chromecast stack wired yet)
+        if (castHint) {
+            LaunchedEffect(castHint) {
+                delay(1600)
+                castHint = false
+            }
+            Box(
+                Modifier
+                    .align(Alignment.Center)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.Black.copy(alpha = 0.72f))
+                    .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 18.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    stringResource(R.string.cast_unavailable),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         }
 
@@ -1036,25 +1159,20 @@ fun PlayerScreen(
     }
 
     // ---- Sheets -----------------------------------------------------------
-    if (showSettings) {
-        SettingsSheet(
-            speed = speed,
-            resizeMode = resizeMode,
-            currentType = currentType,
-            trackState = trackState,
-            onSpeed = { showSettings = false; showSpeedSheet = true },
-            onQuality = { showSettings = false; showQualitySheet = true },
-            onSubs = { showSettings = false; showTrackSheet = true },
-            onAudio = { showSettings = false; showAudioSheet = true },
-            onResizeCycle = { resizeMode = (resizeMode + 1) % 3 },
-            onType = { next ->
-                currentType = next
+    if (showServerSheet) {
+        ServerSheet(
+            servers = serverOptions,
+            selectedId = selectedServerId,
+            selectedName = selectedServerName,
+            onSelect = { id, name ->
+                selectedServerId = id
+                selectedServerName = name
                 streamUrl = null
                 resolveError = false
                 loadKey++
-                showSettings = false
+                showServerSheet = false
             },
-            onDismiss = { showSettings = false }
+            onDismiss = { showServerSheet = false }
         )
     }
 
@@ -1082,6 +1200,8 @@ fun PlayerScreen(
             currentType = currentType,
             onTypeChange = { next ->
                 currentType = next
+                selectedServerId = null
+                selectedServerName = null
                 streamUrl = null
                 resolveError = false
                 loadKey++
@@ -1430,6 +1550,136 @@ private fun BottomAction(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+/** Floating glass More menu — matches existing glassmorphic player chrome. */
+@Composable
+private fun MoreGlassMenu(
+    resizeMode: Int,
+    speed: Float,
+    onFit: () -> Unit,
+    onPip: () -> Unit,
+    onRotate: () -> Unit,
+    onCast: () -> Unit,
+    onSpeed: () -> Unit
+) {
+    val glass = Color.Black.copy(alpha = 0.72f)
+    val border = Color.White.copy(alpha = 0.16f)
+    Column(
+        Modifier
+            .widthIn(min = 200.dp, max = 240.dp)
+            .shadow(16.dp, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.16f),
+                        glass
+                    )
+                )
+            )
+            .border(1.dp, border, RoundedCornerShape(16.dp))
+            .padding(vertical = 6.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {}
+            )
+    ) {
+        val fitLabel = when (resizeMode) {
+            0 -> stringResource(R.string.fit_screen)
+            1 -> stringResource(R.string.zoom)
+            else -> stringResource(R.string.fill)
+        }
+        MoreMenuRow(
+            icon = Icons.Outlined.AspectRatio,
+            label = fitLabel,
+            active = resizeMode != 0,
+            onClick = onFit
+        )
+        MoreMenuRow(
+            icon = Icons.Outlined.PictureInPictureAlt,
+            label = stringResource(R.string.picture_in_picture),
+            onClick = onPip
+        )
+        MoreMenuRow(
+            icon = Icons.Filled.ScreenRotation,
+            label = stringResource(R.string.rotate_screen),
+            onClick = onRotate
+        )
+        MoreMenuRow(
+            icon = Icons.Filled.Cast,
+            label = stringResource(R.string.cast),
+            onClick = onCast
+        )
+        MoreMenuRow(
+            icon = Icons.Outlined.Speed,
+            label = if (speed == 1f) {
+                stringResource(R.string.playback_speed)
+            } else {
+                "${stringResource(R.string.playback_speed)} · ${speed}x"
+            },
+            active = speed != 1f,
+            onClick = onSpeed
+        )
+    }
+}
+
+@Composable
+private fun MoreMenuRow(
+    icon: ImageVector,
+    label: String,
+    active: Boolean = false,
+    onClick: () -> Unit
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (active) Flame else Color.White,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            label,
+            color = if (active) Flame else Color.White,
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun ServerSheet(
+    servers: List<Pair<String, String>>,
+    selectedId: String?,
+    selectedName: String?,
+    onSelect: (id: String, name: String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    SheetScaffold(title = stringResource(R.string.switch_server), onDismiss = onDismiss) {
+        if (servers.isEmpty()) {
+            Text(
+                stringResource(R.string.no_servers),
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        } else {
+            servers.forEach { (id, name) ->
+                val selected = id == selectedId ||
+                    (selectedId == null && name.equals(selectedName, true))
+                TrackRow(name, selected) { onSelect(id, name) }
+            }
+        }
     }
 }
 

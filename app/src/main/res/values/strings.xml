@@ -64,4 +64,9 @@
     <string name="no_subtitle_tracks">No subtitle tracks on this source</string>
     <string name="no_audio_tracks">No alternate audio tracks for this source</string>
     <string name="quality_adaptive_only">Adaptive stream — Auto quality only</string>
+    <string name="more">More</string>
+    <string name="fit_screen">Fit Screen</string>
+    <string name="rotate_screen">Rotate Screen</string>
+    <string name="cast">Cast</string>
+    <string name="cast_unavailable">Cast is not available yet</string>
 </resources>
