@@ -761,47 +761,46 @@ fun PlayerScreen(
                                 tint = if (showMoreMenu) Flame else Color.White
                             )
                         }
-                        AnimatedVisibility(
-                            visible = showMoreMenu && controlsVisible,
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .statusBarsPadding()
-                                .padding(top = 52.dp, end = 10.dp),
-                            enter = fadeIn(tween(180)) + slideInVertically(
-                                animationSpec = tween(220),
-                                initialOffsetY = { it / 3 }
-                            ),
-                            exit = fadeOut(tween(140)) + slideOutVertically(
-                                animationSpec = tween(160),
-                                targetOffsetY = { it / 4 }
-                            )
-                        ) {
-                            MoreGlassMenu(
-                                resizeMode = resizeMode,
-                                speed = speed,
-                                onFit = {
-                                    touchControls()
-                                    resizeMode = (resizeMode + 1) % 3
-                                },
-                                onPip = {
-                                    touchControls()
-                                    showMoreMenu = false
-                                    runCatching { activity?.enterPictureInPictureMode() }
-                                },
-                                onRotate = {
-                                    touchControls()
-                                    isFullscreen = !isFullscreen
-                                },
-                                onCast = {
-                                    touchControls()
-                                    castHint = true
-                                },
-                                onSpeed = {
-                                    touchControls()
-                                    showMoreMenu = false
-                                    showSpeedSheet = true
-                                }
-                            )
+                        if (showMoreMenu) {
+                            val yOff = with(density) { 46.dp.roundToPx() }
+                            Popup(
+                                alignment = Alignment.TopEnd,
+                                offset = IntOffset(0, yOff),
+                                onDismissRequest = { showMoreMenu = false },
+                                properties = PopupProperties(
+                                    focusable = true,
+                                    dismissOnClickOutside = true,
+                                    dismissOnBackPress = true,
+                                    clippingEnabled = false
+                                )
+                            ) {
+                                MoreGlassMenu(
+                                        resizeMode = resizeMode,
+                                        speed = speed,
+                                        onFit = {
+                                            touchControls()
+                                            resizeMode = (resizeMode + 1) % 3
+                                        },
+                                        onPip = {
+                                            touchControls()
+                                            showMoreMenu = false
+                                            runCatching { activity?.enterPictureInPictureMode() }
+                                        },
+                                        onRotate = {
+                                            touchControls()
+                                            isFullscreen = !isFullscreen
+                                        },
+                                        onCast = {
+                                            touchControls()
+                                            castHint = true
+                                        },
+                                        onSpeed = {
+                                            touchControls()
+                                            showMoreMenu = false
+                                            showSpeedSheet = true
+                                        }
+                                    )
+                            }
                         }
                     }
                 }
