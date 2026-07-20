@@ -391,7 +391,7 @@ private fun com.aniwavestream.app.data.model.AlAiring.toAiring(): AiringSchedule
     return AiringSchedule(
         id = m.id,
         title = name,
-        cover = m.coverImage?.medium,
+        cover = m.coverImage?.extraLarge ?: m.coverImage?.large ?: m.coverImage?.medium,
         episode = episode ?: 0,
         totalEpisodes = m.episodes,
         airingAt = airingAt ?: 0L,
