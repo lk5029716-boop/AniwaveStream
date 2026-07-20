@@ -88,7 +88,7 @@ import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.DayAiring
 import com.aniwavestream.app.data.model.NewReleaseEpisode
 import com.aniwavestream.app.data.model.ScheduleDays
-import com.aniwavestream.app.data.model.SchedulePills
+import com.aniwavestream.app.data.model.currentWeekPills
 import com.aniwavestream.app.data.model.Character
 import com.aniwavestream.app.data.model.Episode
 import com.aniwavestream.app.ui.theme.AnivaveArt
@@ -1411,7 +1411,7 @@ fun AnivaveScheduleCard(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            SchedulePills.forEachIndexed { idx, (name, num) ->
+            currentWeekPills().forEachIndexed { idx, (name, num) ->
                 val active = idx == activeDayIndex
                 Column(
                     Modifier
