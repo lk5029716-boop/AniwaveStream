@@ -149,6 +149,7 @@ data class AlMedia(
     val bannerImage: String? = null,
     val averageScore: Int? = null,
     val episodes: Int? = null,
+    val nextAiringEpisode: AlAiringEpisode? = null,
     val seasonYear: Int? = null,
     val format: String? = null,
     val status: String? = null,
@@ -172,6 +173,11 @@ data class AlCoverImage(
     val large: String? = null,
     val medium: String? = null,
     val color: String? = null
+)
+
+@Serializable
+data class AlAiringEpisode(
+    val episode: Int? = null
 )
 
 @Serializable
@@ -224,7 +230,7 @@ fun AlMedia.toAnime(): Anime {
         posterUrl = poster,
         bannerUrl = bannerImage ?: poster,
         score = averageScore?.toDouble()?.div(10.0),
-        episodes = episodes,
+        episodes = episodes ?: nextAiringEpisode?.episode,
         year = seasonYear,
         type = format,
         status = status,
