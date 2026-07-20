@@ -1456,31 +1456,70 @@ fun ScheduleRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .border(1.dp, Hairline, RoundedCornerShape(10.dp))
-            .background(SurfaceRaised.copy(alpha = 0.5f))
+            .clip(RoundedCornerShape(12.dp))
+            .background(SurfaceRaised.copy(alpha = 0.92f))
             .clickable { onItem() }
-            .padding(8.dp, 10.dp),
+            .padding(12.dp, 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Broadcast time
         Text(
             s.time,
             color = Flame,
             fontFamily = PlexMono,
-            fontSize = 10.5.sp,
+            fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.width(44.dp)
+            modifier = Modifier.width(46.dp)
         )
         Column(Modifier.weight(1f)) {
-            Text(s.title, color = TextPrimary, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val statusColor = when {
-                s.status.contains("Hype", true) -> Flame
-                s.status.contains("New", true) -> Cool
-                s.status.contains("Final", true) -> Gold
-                else -> TextSecondary
+            Text(
+                s.title,
+                color = TextPrimary,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(5.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // Solid EP badge
+                if (s.episode > 0) {
+                    Box(
+                        Modifier
+                            .background(Flame, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 7.dp, vertical = 2.5.dp)
+                    ) {
+                        Text(
+                            "EP ${s.episode}",
+                            color = Void,
+                            fontFamily = PlexMono,
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                // Status chip (colored solid box)
+                val (chipBg, chipFg) = when {
+                    s.status.contains("Hype", true) -> Flame to Void
+                    s.status.contains("New", true) -> Cool to Void
+                    s.status.contains("Final", true) -> Gold to Void
+                    else -> SurfaceRaised to TextSecondary
+                }
+                Box(
+                    Modifier
+                        .background(chipBg, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 7.dp, vertical = 2.5.dp)
+                ) {
+                    Text(
+                        s.status.uppercase(),
+                        color = chipFg,
+                        fontFamily = PlexMono,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.4.sp
+                    )
+                }
             }
-            Text(s.status, color = statusColor, fontFamily = PlexMono, fontSize = 8.5.sp, fontWeight = FontWeight.Medium)
         }
-        Text("●", color = Cool, fontSize = 10.sp, fontFamily = PlexMono)
     }
 }
