@@ -63,7 +63,6 @@ import kotlinx.coroutines.delay
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import com.aniwavestream.app.data.model.Anime
-import com.aniwavestream.app.data.model.DemoStreams
 import com.aniwavestream.app.data.model.Character
 import com.aniwavestream.app.data.model.Episode
 import com.aniwavestream.app.data.repository.AnimeRepository
@@ -119,7 +118,20 @@ fun DetailScreen(
                 .onSuccess { data ->
                     runCatching {
                         anime = data
-                        episodes = DemoStreams.buildEpisodes(data)
+                        // Real episode list: count comes from AniList media.episodes.
+                        // Playback is driven by ep.number via the real streaming backend,
+                        // so no demo stream URLs are baked in here.
+                        val epCount = (data.episodes ?: 0).coerceAtLeast(0)
+                        episodes = if (epCount > 0) {
+                            (1..epCount).map { n ->
+                                Episode(
+                                    number = n,
+                                    title = "Episode $n",
+                                    durationLabel = "",
+                                    streamUrl = ""
+                                )
+                            }
+                        } else emptyList()
                     }.onFailure { crash = it }
                     loading = false
                 }
