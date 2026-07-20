@@ -249,12 +249,17 @@ class AnimeRepository(
      * airing episodes (time-windowed) and hand the flat list back; the ViewModel
      * groups it by weekday + derives "EP x" + status. No mock data.
      */
-    suspend fun schedule(perPage: Int = 60): Result<List<AiringSchedule>> = withContext(Dispatchers.IO) {
+    suspend fun schedule(perPage: Int = 80): Result<List<AiringSchedule>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
             val now = System.currentTimeMillis() / 1000L
-            val windowEnd = now + (7L * 24 * 3600) // next 7 days, in AniList unix-seconds
-            val text = AniListApi.query(AIRING_Q) { int("per", perPage); int("window", windowEnd.toInt()) }
+            val from = now              // only UPCOMING airings (this week onward) — not 1970-era
+            val to = now + (7L * 24 * 3600) // next 7 days, in AniList unix-seconds
+            val text = AniListApi.query(AIRING_Q) {
+                int("per", perPage)
+                int("from", from.toInt())
+                int("to", to.toInt())
+            }
             val resp = parse(text)
             resp.data?.Page?.airingSchedules?.mapNotNull { it.toAiring() } ?: emptyList()
         }
@@ -368,9 +373,9 @@ query(${'$'}id: Int) {
 }"""
 
 private const val AIRING_Q = """
-query(${'$'}per: Int, ${'$'}window: Int) {
+query(${'$'}per: Int, ${'$'}from: Int, ${'$'}to: Int) {
   Page(page: 1, perPage: ${'$'}per) {
-    airingSchedules(sort: TIME, airingAt_greater: 0, airingAt_lesser: ${'$'}window) {
+    airingSchedules(sort: TIME, airingAt_greater: ${'$'}from, airingAt_lesser: ${'$'}to) {
       episode
       airingAt
       media { id title { romaji english } coverImage { medium } episodes status }
