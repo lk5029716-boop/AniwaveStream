@@ -51,6 +51,20 @@ interface JikanApi {
     @GET("anime/{id}/recommendations")
     suspend fun recommendations(@Path("id") id: Int): AnimeListResponse
 
+    /**
+     * Weekly anime schedule. The Jikan /schedules endpoint returns anime
+     * airing on a given weekday. `day` must be one of:
+     * monday, tuesday, wednesday, thursday, friday, saturday, sunday.
+     */
+    @GET("schedules")
+    suspend fun schedules(
+        @Query("q") query: String? = null,
+        @Query("day") day: String? = null,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 50,
+        @Query("sfw") sfw: Boolean = true
+    ): AnimeListResponse
+
     companion object {
         private const val BASE = "https://api.jikan.moe/v4/"
 
@@ -68,7 +82,6 @@ interface JikanApi {
                 .readTimeout(30, TimeUnit.SECONDS)
                 .addInterceptor(logging)
                 .addInterceptor { chain ->
-                    // Jikan free tier: be polite with User-Agent
                     val req = chain.request().newBuilder()
                         .header("Accept", "application/json")
                         .header("User-Agent", "AniwaveStream/1.0 (Android educational demo)")
