@@ -58,6 +58,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -1505,10 +1506,42 @@ fun ScheduleRow(
                     s.time, color = Flame, fontFamily = PlexMono,
                     fontSize = 12.sp, fontWeight = FontWeight.Bold
                 )
-                if (s.status.isNotBlank()) {
+                // Hype-style status label + live countdown until the ep drops.
+                val nowSec = System.currentTimeMillis() / 1000L
+                val dropsIn = if (s.airingAt > 0L) {
+                    (s.airingAt - nowSec).coerceAtLeast(0L)
+                } else 0L
+                val cdState = remember(dropsIn) { mutableStateOf(dropsIn) }
+                LaunchedEffect(s.airingAt) {
+                    if (s.airingAt > 0L) {
+                        while (true) {
+                            val left = (s.airingAt - System.currentTimeMillis() / 1000L).coerceAtLeast(0L)
+                            cdState.value = left
+                            if (left <= 0L) break
+                            delay(1000L)
+                        }
+                    }
+                }
+                val hypeLabel = when {
+                    s.status.equals("Final", true) -> "FINALE DROP"
+                    dropsIn <= 0L -> "OUT NOW"
+                    else -> "EP ${s.episode} DROPS IN"
+                }
+                val cd = cdState.value
+                val (cdText, justDropped) = if (cd <= 0L) {
+                    "LIVE NOW" to true
+                } else {
+                    val d = cd / 86400L
+                    val h = (cd % 86400L) / 3600L
+                    val m = (cd % 3600L) / 60L
+                    (if (d > 0) "${d}d ${h}h ${m}m" else "${h}h ${m}m") to false
+                }
+                if (s.status.isNotBlank() || s.airingAt > 0L) {
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        s.status, color = Cool, fontFamily = PlexMono,
+                        if (justDropped) hypeLabel else "$hypeLabel $cdText",
+                        color = if (justDropped) Flame else Cool,
+                        fontFamily = PlexMono,
                         fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis
                     )

@@ -405,7 +405,8 @@ data class DayAiring(
     val status: String,    // "Hype Airing", "New", "Final"
     val episode: Int = 0,  // released episode number (0 = unknown)
     val cover: String? = null,
-    val posterFocal: Alignment = PosterFocalDefault // crop bias: top-third (object-position ~center 22%), overridable per title
+    val posterFocal: Alignment = PosterFocalDefault, // crop bias: top-third (object-position ~center 22%), overridable per title
+    val airingAt: Long = 0L  // epoch SECONDS of the next airing (0 = unknown)
 )
 
 /**
@@ -427,7 +428,7 @@ fun buildRealSchedule(shows: List<AiringSchedule>): Map<String, List<DayAiring>>
             s.status.equals("RELEASING", true) && (s.totalEpisodes == null || s.episode < (s.totalEpisodes ?: Int.MAX_VALUE)) -> "Hype Airing"
             else -> "New"
         }
-        byDay[dayName]?.add(DayAiring(time, s.title, status, s.episode, s.cover))
+        byDay[dayName]?.add(DayAiring(time, s.title, status, s.episode, s.cover, PosterFocalDefault, s.airingAt))
     }
     return byDay
 }
