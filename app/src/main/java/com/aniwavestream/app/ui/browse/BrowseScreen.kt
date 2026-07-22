@@ -32,10 +32,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.BrowseGenres
 import com.aniwavestream.app.data.repository.AnimeRepository
@@ -121,8 +123,11 @@ fun BrowseScreen(
             ) {
                 items(items, key = { it.id }) { anime ->
                     Column(Modifier.clickable { onAnimeClick(anime) }) {
-                        AsyncImage(
-                            model = anime.posterUrl,
+                        SubcomposeAsyncImage(
+                            model = ImageRequest.Builder(LocalDensity.current)
+                                .data(anime.posterUrl)
+                                .crossfade(true)
+                                .build(),
                             contentDescription = anime.title,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
