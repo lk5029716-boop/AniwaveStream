@@ -35,9 +35,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import androidx.compose.ui.unit.sp
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.ui.theme.Background
 import com.aniwavestream.app.ui.theme.OrangePrimary
@@ -107,11 +111,43 @@ fun AnimePosterCard(
                 .clip(RoundedCornerShape(10.dp))
                 .background(SurfaceElevated)
         ) {
-            AsyncImage(
-                model = anime.posterUrl,
+            SubcomposeAsyncImage(
+                model = ImageRequest.Builder(LocalDensity.current)
+                    .data(anime.posterUrl)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = anime.title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                loading = {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(SurfaceElevated),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = OrangePrimary,
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                },
+                error = {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(SurfaceElevated),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            anime.title.firstOrNull()?.toString() ?: "?",
+                            color = TextSecondary,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             )
             if (showScore && anime.score != null) {
                 Row(
@@ -187,8 +223,11 @@ fun ContinueCard(
                 .clip(RoundedCornerShape(8.dp))
                 .background(Background)
         ) {
-            AsyncImage(
-                model = anime.posterUrl,
+            SubcomposeAsyncImage(
+                model = ImageRequest.Builder(LocalDensity.current)
+                    .data(anime.posterUrl)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -238,8 +277,11 @@ fun HeroBanner(
             .fillMaxWidth()
             .height(420.dp)
     ) {
-        AsyncImage(
-            model = anime.bannerUrl ?: anime.posterUrl,
+        SubcomposeAsyncImage(
+            model = ImageRequest.Builder(LocalDensity.current)
+                .data(anime.bannerUrl ?: anime.posterUrl)
+                .crossfade(true)
+                .build(),
             contentDescription = anime.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
