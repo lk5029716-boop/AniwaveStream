@@ -1525,7 +1525,7 @@ fun ScheduleRow(
                 val hypeLabel = when {
                     s.status.equals("Final", true) -> "FINALE DROP"
                     dropsIn <= 0L -> "OUT NOW"
-                    else -> "EP ${s.episode} DROPS IN"
+                    else -> "DROPS IN"
                 }
                 val cd = cdState.value
                 val (cdText, justDropped) = if (cd <= 0L) {
