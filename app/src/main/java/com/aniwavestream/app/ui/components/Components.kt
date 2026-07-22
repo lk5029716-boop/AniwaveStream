@@ -1401,55 +1401,37 @@ fun AnivaveScheduleCard(
             .background(Surface)
             .padding(14.dp)
     ) {
-        // --- Day selector ---
-        Row(Modifier.fillMaxWidth()) {
+        // --- Day selector (original: 7 equal pills, Mon + date, active highlighted) ---
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             currentWeekPills().forEachIndexed { idx, (name, num) ->
                 val active = idx == activeDayIndex
-                if (active) {
-                    // Active day: emphasized pill with weekday + big date.
-                    Column(
-                        Modifier
-                            .fillMaxWidth(0.19f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Flame)
-                            .clickable { onDay(idx) }
-                            .padding(horizontal = 14.dp, vertical = 9.dp)
-                    ) {
-                        Text(
-                            ScheduleDays[idx].replaceFirstChar { it.uppercaseChar() },
-                            color = Void, fontFamily = Bricolage,
-                            fontWeight = FontWeight.Bold, fontSize = 14.sp
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "$num", color = Void, fontFamily = PlexMono,
-                                fontWeight = FontWeight.Bold, fontSize = 20.sp
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                "${shows.size} airing", color = Void.copy(alpha = 0.85f),
-                                fontFamily = PlexMono, fontSize = 10.sp
-                            )
-                        }
-                    }
-                } else {
-                    // Inactive day: compact Mon / Sun chip.
-                    Column(
-                        Modifier
-                            .fillMaxWidth(0.135f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(SurfaceRaised)
-                            .border(1.dp, Hairline, RoundedCornerShape(10.dp))
-                            .clickable { onDay(idx) }
-                            .padding(vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            name, color = TextMuted, fontFamily = PlexMono,
-                            fontSize = 11.sp, fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (active) TextPrimary else SurfaceRaised)
+                        .border(1.dp, Hairline, RoundedCornerShape(10.dp))
+                        .clickable { onDay(idx) }
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        name.uppercase(),
+                        color = if (active) Void else TextMuted,
+                        fontFamily = PlexMono,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "$num",
+                        color = if (active) Void else TextMuted,
+                        fontFamily = FontFamily.Default,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
