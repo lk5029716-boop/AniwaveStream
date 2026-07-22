@@ -39,6 +39,7 @@ import com.aniwavestream.app.ui.home.HomeScreen
 import com.aniwavestream.app.ui.mylist.MyListScreen
 import com.aniwavestream.app.ui.player.PlayerScreen
 import com.aniwavestream.app.ui.profile.ProfileScreen
+import com.aniwavestream.app.ui.schedule.ScheduleScreen
 import com.aniwavestream.app.ui.search.SearchScreen
 import com.aniwavestream.app.ui.theme.Background
 import com.aniwavestream.app.ui.theme.OrangePrimary
@@ -52,6 +53,7 @@ sealed class Route(val path: String) {
     data object Home : Route("home")
     data object Browse : Route("browse")
     data object Search : Route("search")
+    data object Schedule : Route("schedule")
     data object MyList : Route("mylist")
     data object Profile : Route("profile")
     data object Detail : Route("detail/{id}") {
@@ -73,6 +75,7 @@ private val tabs = listOf(
     Tab(Route.Home.path, "Home", Icons.Filled.Home, Icons.Outlined.Home),
     Tab(Route.Browse.path, "Browse", Icons.Filled.GridView, Icons.Outlined.GridView),
     Tab(Route.Search.path, "Search", Icons.Filled.Search, Icons.Outlined.Search),
+    Tab(Route.Schedule.path, "Schedule", Icons.Filled.VideoLibrary, Icons.Outlined.VideoLibrary),
     Tab(Route.MyList.path, "My List", Icons.Filled.VideoLibrary, Icons.Outlined.VideoLibrary),
     Tab(Route.Profile.path, "Profile", Icons.Filled.Person, Icons.Outlined.Person)
 )
@@ -156,6 +159,12 @@ fun AniwaveNavHost(
             }
             composable(Route.Search.path) {
                 SearchScreen(
+                    repository = repository,
+                    onAnimeClick = { openDetail(it.id) }
+                )
+            }
+            composable(Route.Schedule.path) {
+                ScheduleScreen(
                     repository = repository,
                     onAnimeClick = { openDetail(it.id) }
                 )
