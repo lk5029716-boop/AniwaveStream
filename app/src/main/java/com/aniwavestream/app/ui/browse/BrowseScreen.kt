@@ -62,7 +62,7 @@ import com.aniwavestream.app.ui.theme.TextSecondary
 import com.aniwavestream.app.ui.theme.Void
 
 /** Top-level filter modes for the Browse hub. */
-private enum class BrowseMode { GENRE, LETTER, YEAR }
+private enum class BrowseMode { ALL, GENRE, LETTER, YEAR }
 
 private val LETTER_RANGES = listOf(
     "ALL",
@@ -112,6 +112,7 @@ fun BrowseScreen(
         loading = true
         error = null
         val result = when (mode) {
+            BrowseMode.ALL -> repository.allAnime()
             BrowseMode.GENRE -> repository.byGenre(selectedGenre)
             BrowseMode.LETTER -> repository.byLetter(selectedLetter ?: "All")
             BrowseMode.YEAR -> repository.byYear(selectedYear ?: 2026)
@@ -144,14 +145,8 @@ fun BrowseScreen(
         ) {
             BrowseTopBox(
                 label = "All Anime",
-                selected = mode == BrowseMode.LETTER,
-                onClick = {
-                    mode = BrowseMode.LETTER
-                    if (selectedRange == null) {
-                        selectedRange = "ALL"
-                        selectedLetter = "All"
-                    }
-                }
+                selected = mode == BrowseMode.ALL,
+                onClick = { mode = BrowseMode.ALL }
             )
             BrowseTopBox(
                 label = "Genre",
@@ -175,6 +170,7 @@ fun BrowseScreen(
 
         // Contextual sub-filter panel under the selected top box.
         when (mode) {
+            BrowseMode.ALL -> {} // no sub-filter
             BrowseMode.GENRE -> GenreChips(
                 selectedGenre = selectedGenre,
                 onSelect = { selectedGenre = it }
@@ -233,6 +229,16 @@ fun BrowseScreen(
                             color = TextPrimary,
                             style = MaterialTheme.typography.bodyMedium
                         )
+                        anime.year?.let { yr ->
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                yr.toString(),
+                                color = TextSecondary,
+                                fontFamily = PlexMono,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }

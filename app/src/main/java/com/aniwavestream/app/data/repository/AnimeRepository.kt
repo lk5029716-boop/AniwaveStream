@@ -200,6 +200,14 @@ class AnimeRepository(
         }
     }
 
+    /** "All Anime" browse: popular AniList media (no sub-filter). */
+    suspend fun allAnime(perPage: Int = 24): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            remember(page(AniListApi.query(POPULAR_Q, { int("perPage", perPage) })).map { it.toAnime() })
+        }
+    }
+
     /** Release year browse: AniList media filtered by seasonYear. */
     suspend fun byYear(year: Int): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
