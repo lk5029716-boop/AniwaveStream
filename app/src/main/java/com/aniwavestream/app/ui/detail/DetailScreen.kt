@@ -41,9 +41,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.data.repository.UserLibraryStore
@@ -104,8 +106,11 @@ fun DetailScreen(
                             .fillMaxWidth()
                             .height(320.dp)
                     ) {
-                        AsyncImage(
-                            model = a.bannerUrl ?: a.posterUrl,
+                        SubcomposeAsyncImage(
+                            model = ImageRequest.Builder(LocalDensity.current)
+                                .data(a.bannerUrl ?: a.posterUrl)
+                                .crossfade(true)
+                                .build(),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
