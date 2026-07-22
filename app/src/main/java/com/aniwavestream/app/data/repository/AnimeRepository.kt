@@ -2,6 +2,7 @@ package com.aniwavestream.app.data.repository
 
 import com.aniwavestream.app.data.api.JikanApi
 import com.aniwavestream.app.data.model.Anime
+import com.aniwavestream.app.data.model.ScheduleDay
 import com.aniwavestream.app.data.model.toAnime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -14,7 +15,6 @@ class AnimeRepository(
     private var lastCallMs = 0L
 
     private suspend fun throttle() {
-        // Jikan free tier ~3 req/s; keep a small gap between calls
         val now = System.currentTimeMillis()
         val wait = 400 - (now - lastCallMs)
         if (wait > 0) delay(wait)
@@ -44,6 +44,13 @@ class AnimeRepository(
         runCatching {
             throttle()
             remember(api.seasonalNow(limit = limit).data.map { it.toAnime() })
+        }
+    }
+
+    suspend fun schedule(day: ScheduleDay, limit: Int = 50): Result<List<Anime>> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            remember(api.schedules(day = day.jikanParam, limit = limit).data.map { it.toAnime() })
         }
     }
 
