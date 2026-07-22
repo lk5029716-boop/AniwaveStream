@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
@@ -72,7 +71,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -1401,7 +1399,7 @@ fun AnivaveScheduleCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "${ScheduleDays[activeDayIndex].replaceFirstChar { it.uppercase() }}'s Schedule",
+                "${ScheduleDays[activeDayIndex].replaceFirstChar { it.uppercaseChar() }}'s Schedule",
                 color = TextPrimary, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 15.sp
             )
         }
@@ -1451,11 +1449,6 @@ fun AnivaveScheduleCard(
     }
 }
 
-/**
- * Diagonal parallelogram clip for schedule-row cover art.
- * Points (as % of the art container): TL 38%,0 -> TR 100%,0 -> BR 100%,100% -> BL 8%,100%.
- * Only the clip path is slanted — the image bitmap itself is NOT skewed/rotated.
- */
 // ── Shared, hardcoded schedule-row geometry (NO per-row variation) ─────────────
 // Every row uses these exact dimensions so all rows are pixel-identical.
 private val ROW_HEIGHT = 120.dp
@@ -1463,17 +1456,6 @@ private val ART_SLOT_WIDTH = 108.dp
 private val ROW_CORNER = 12.dp
 private val ROW_HPAD = 12.dp
 private val ROW_VPAD = 12.dp
-private val ART_CLIP_MARGIN = 2.dp   // tiny inset so the slanted edge isn't clipped by the rounded card
-
-private val SlantedArtShape = GenericShape { size: Size, _ ->
-    val w = size.width
-    val h = size.height
-    moveTo(w * 0.38f, 0f)
-    lineTo(w, 0f)
-    lineTo(w, h)
-    lineTo(w * 0.08f, h)
-    close()
-}
 
 /** A single timed broadcast row used inside the Weekly Schedule card AND the full schedule screen. */
 @Composable
@@ -1491,7 +1473,7 @@ fun ScheduleRow(
             .background(SurfaceRaised.copy(alpha = 0.92f))
             .clickable { onItem() }
     ) {
-        // --- Trailing slanted cover art (right edge), fixed slot size ---
+        // --- Trailing cover art (right edge), clean rounded slot ---
         if (!s.cover.isNullOrBlank()) {
             Box(
                 Modifier
@@ -1507,23 +1489,7 @@ fun ScheduleRow(
                     alignment = s.posterFocal,
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(SlantedArtShape)
-                )
-                // Gradient blend: row bg (opaque) -> transparent, softens the hard cut.
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .clip(SlantedArtShape)
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(
-                                    SurfaceRaised.copy(alpha = 0.92f),
-                                    Color.Transparent
-                                ),
-                                startX = 0f,
-                                endX = ART_SLOT_WIDTH.value * 0.62f
-                            )
-                        )
+                        .clip(RoundedCornerShape(ROW_CORNER))
                 )
             }
         }
