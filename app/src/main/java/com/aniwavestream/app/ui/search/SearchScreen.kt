@@ -34,9 +34,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.repository.AnimeRepository
 import com.aniwavestream.app.ui.components.LoadingBox
@@ -110,7 +112,7 @@ fun SearchScreen(
             loading -> LoadingBox()
             query.isBlank() -> BoxHint("Find titles, genres vibes, or classics")
             error != null -> BoxHint(error!!)
-            results.isEmpty() -> BoxHint("No results for “$query”")
+            results.isEmpty() -> BoxHint("No results for \"$query\"")
             else -> LazyColumn(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -147,8 +149,11 @@ private fun SearchRow(anime: Anime, onClick: () -> Unit) {
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AsyncImage(
-            model = anime.posterUrl,
+        SubcomposeAsyncImage(
+            model = ImageRequest.Builder(LocalDensity.current)
+                .data(anime.posterUrl)
+                .crossfade(true)
+                .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
