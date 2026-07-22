@@ -43,7 +43,8 @@ data class AnimeDto(
     @SerialName("aired") val aired: Aired? = null
 ) {
     val displayTitle: String get() = titleEnglish?.takeIf { it.isNotBlank() } ?: title
-    val posterUrl: String? get() = images?.jpg?.largeImageUrl ?: images?.jpg?.imageUrl
+    val posterUrl: String? get() = images?.webp?.largeImageUrl ?: images?.jpg?.largeImageUrl ?: images?.jpg?.imageUrl
+    val posterThumbUrl: String? get() = images?.webp?.smallImageUrl ?: images?.jpg?.smallImageUrl ?: posterUrl
     val bannerUrl: String? get() = images?.jpg?.largeImageUrl ?: posterUrl
 }
 
@@ -54,7 +55,8 @@ data class Images(val jpg: ImageUrls? = null, val webp: ImageUrls? = null)
 data class ImageUrls(
     @SerialName("image_url") val imageUrl: String? = null,
     @SerialName("small_image_url") val smallImageUrl: String? = null,
-    @SerialName("large_image_url") val largeImageUrl: String? = null
+    @SerialName("large_image_url") val largeImageUrl: String? = null,
+    @SerialName("medium_image_url") val mediumImageUrl: String? = null
 )
 
 @Serializable
@@ -128,3 +130,21 @@ val BrowseGenres = listOf(
     GenreChip(30, "Sports"),
     GenreChip(37, "Supernatural")
 )
+
+/** Weekly schedule day */
+enum class ScheduleDay(val displayName: String, val jikanParam: String) {
+    MONDAY("Mon", "monday"),
+    TUESDAY("Tue", "tuesday"),
+    WEDNESDAY("Wed", "wednesday"),
+    THURSDAY("Thu", "thursday"),
+    FRIDAY("Fri", "friday"),
+    SATURDAY("Sat", "saturday"),
+    SUNDAY("Sun", "sunday");
+
+    companion object {
+        fun today(): ScheduleDay {
+            val cal = java.util.Calendar.getInstance()
+            return values()[cal.get(java.util.Calendar.DAY_OF_WEEK) - 1]
+        }
+    }
+}
