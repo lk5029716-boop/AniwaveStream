@@ -1506,7 +1506,7 @@ fun ScheduleRow(
                     s.time, color = Flame, fontFamily = PlexMono,
                     fontSize = 12.sp, fontWeight = FontWeight.Bold
                 )
-                // Hype-style status label + live countdown until the ep drops.
+                // Live countdown (AniList airingAt) — just the timer, no label words.
                 val nowSec = System.currentTimeMillis() / 1000L
                 val dropsIn = if (s.airingAt > 0L) {
                     (s.airingAt - nowSec).coerceAtLeast(0L)
@@ -1522,11 +1522,6 @@ fun ScheduleRow(
                         }
                     }
                 }
-                val hypeLabel = when {
-                    s.status.equals("Final", true) -> "FINALE DROP"
-                    dropsIn <= 0L -> "OUT NOW"
-                    else -> "DROPS IN"
-                }
                 val cd = cdState.value
                 val (cdText, justDropped) = if (cd <= 0L) {
                     "LIVE NOW" to true
@@ -1536,10 +1531,10 @@ fun ScheduleRow(
                     val m = (cd % 3600L) / 60L
                     (if (d > 0) "${d}d ${h}h ${m}m" else "${h}h ${m}m") to false
                 }
-                if (s.status.isNotBlank() || s.airingAt > 0L) {
+                if (s.airingAt > 0L) {
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        if (justDropped) hypeLabel else "$hypeLabel $cdText",
+                        cdText,
                         color = if (justDropped) Flame else Cool,
                         fontFamily = PlexMono,
                         fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
