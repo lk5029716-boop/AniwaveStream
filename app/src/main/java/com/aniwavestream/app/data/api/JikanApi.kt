@@ -82,6 +82,7 @@ interface JikanApi {
                 .readTimeout(30, TimeUnit.SECONDS)
                 .addInterceptor(logging)
                 .addInterceptor { chain ->
+                    // Jikan free tier: be polite with User-Agent
                     val req = chain.request().newBuilder()
                         .header("Accept", "application/json")
                         .header("User-Agent", "AniwaveStream/1.0 (Android educational demo)")
