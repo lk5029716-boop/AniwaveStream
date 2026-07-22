@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -1410,7 +1409,7 @@ fun AnivaveScheduleCard(
                     // Active day: emphasized pill with weekday + big date.
                     Column(
                         Modifier
-                            .weight(1.4f)
+                            .fillMaxWidth(0.19f)
                             .clip(RoundedCornerShape(12.dp))
                             .background(Flame)
                             .clickable { onDay(idx) }
@@ -1438,7 +1437,7 @@ fun AnivaveScheduleCard(
                     // Inactive day: compact Mon / Sun chip.
                     Column(
                         Modifier
-                            .weight(1f)
+                            .fillMaxWidth(0.135f)
                             .clip(RoundedCornerShape(10.dp))
                             .background(SurfaceRaised)
                             .border(1.dp, Hairline, RoundedCornerShape(10.dp))
