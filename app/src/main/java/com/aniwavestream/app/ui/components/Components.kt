@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -1376,6 +1377,14 @@ fun AnivaveNewReleasesGrid(
  * row of day-pills (day name + date number) and a timed list beneath.
  * Mirrors anivave.html .schedule-container.
  */
+/**
+ * Weekly Schedule card — redesigned.
+ *
+ * - Large active-day pill with the weekday + bold date, rest are compact Mon/Sun chips.
+ * - Each broadcast is a clean horizontal tile: cover thumbnail (left) + time · title · EP/genre
+ *   badges (right). Cover is shown full-bleed and crisp (no skew, no gradient wash).
+ * - `maxRows` caps the visible tiles (home = 4). Used by both Home and WeeklyScheduleScreen.
+ */
 @Composable
 fun AnivaveScheduleCard(
     activeDayIndex: Int,
@@ -1383,64 +1392,86 @@ fun AnivaveScheduleCard(
     shows: List<DayAiring>,
     onItem: (DayAiring) -> Unit = {},
     modifier: Modifier = Modifier,
-    maxRows: Int = 6
+    maxRows: Int = 4
 ) {
     Column(
         modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .border(1.dp, Hairline, RoundedCornerShape(20.dp))
-            .background(SurfaceRaised.copy(alpha = 0.6f))
+            .clip(RoundedCornerShape(18.dp))
+            .border(1.dp, Hairline, RoundedCornerShape(18.dp))
+            .background(Surface)
             .padding(14.dp)
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "${ScheduleDays[activeDayIndex].replaceFirstChar { it.uppercaseChar() }}'s Schedule",
-                color = TextPrimary, fontFamily = Bricolage, fontWeight = FontWeight.Bold, fontSize = 15.sp
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        // Calendar day-pills (inside the card)
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
+        // --- Day selector ---
+        Row(Modifier.fillMaxWidth()) {
             currentWeekPills().forEachIndexed { idx, (name, num) ->
                 val active = idx == activeDayIndex
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (active) TextPrimary else SurfaceRaised)
-                        .border(1.dp, Hairline, RoundedCornerShape(10.dp))
-                        .clickable { onDay(idx) }
-                        .padding(vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        name.uppercase(),
-                        color = if (active) Void else TextMuted,
-                        fontFamily = PlexMono,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        "$num",
-                        color = if (active) Void else TextMuted,
-                        fontFamily = FontFamily.Default,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                if (active) {
+                    // Active day: emphasized pill with weekday + big date.
+                    Column(
+                        Modifier
+                            .weight(1.4f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Flame)
+                            .clickable { onDay(idx) }
+                            .padding(horizontal = 14.dp, vertical = 9.dp)
+                    ) {
+                        Text(
+                            ScheduleDays[idx].replaceFirstChar { it.uppercaseChar() },
+                            color = Void, fontFamily = Bricolage,
+                            fontWeight = FontWeight.Bold, fontSize = 14.sp
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "$num", color = Void, fontFamily = PlexMono,
+                                fontWeight = FontWeight.Bold, fontSize = 20.sp
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "${shows.size} airing", color = Void.copy(alpha = 0.85f),
+                                fontFamily = PlexMono, fontSize = 10.sp
+                            )
+                        }
+                    }
+                } else {
+                    // Inactive day: compact Mon / Sun chip.
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(SurfaceRaised)
+                            .border(1.dp, Hairline, RoundedCornerShape(10.dp))
+                            .clickable { onDay(idx) }
+                            .padding(vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            name, color = TextMuted, fontFamily = PlexMono,
+                            fontSize = 11.sp, fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }
-        Spacer(Modifier.height(12.dp))
+
+        Spacer(Modifier.height(14.dp))
+
+        // --- Broadcast list ---
         if (shows.isEmpty()) {
-            Text("No streams today", color = TextMuted, fontFamily = PlexMono, fontSize = 12.sp, modifier = Modifier.padding(vertical = 12.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SurfaceRaised)
+                    .padding(vertical = 22.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "Nothing airing on ${ScheduleDays[activeDayIndex].replaceFirstChar { it.uppercaseChar() }}",
+                    color = TextMuted, fontFamily = PlexMono, fontSize = 12.sp
+                )
+            }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 shows.take(maxRows).forEach { s -> ScheduleRow(s) { onItem(s) } }
@@ -1449,94 +1480,80 @@ fun AnivaveScheduleCard(
     }
 }
 
-// ── Shared, hardcoded schedule-row geometry (NO per-row variation) ─────────────
-// Every row uses these exact dimensions so all rows are pixel-identical.
-private val ROW_HEIGHT = 120.dp
-private val ART_SLOT_WIDTH = 108.dp
-private val ROW_CORNER = 12.dp
-private val ROW_HPAD = 12.dp
-private val ROW_VPAD = 12.dp
+// ── Shared schedule-row geometry ──────────────────────────────────────────────
+private val ROW_HEIGHT = 76.dp
+private val COVER_SIZE = 54.dp
+private val ROW_CORNER = 14.dp
+private val ROW_PAD = 10.dp
 
-/** A single timed broadcast row used inside the Weekly Schedule card AND the full schedule screen. */
+/** A single timed broadcast row: cover thumbnail · time · title · EP/genre badges. */
 @Composable
 fun ScheduleRow(
     s: DayAiring,
     onItem: () -> Unit = {}
 ) {
-    // Fixed-height row: identical for every item, zero per-row variation.
-    Box(
+    Row(
         Modifier
             .fillMaxWidth()
             .height(ROW_HEIGHT)
-            .clipToBounds()
             .clip(RoundedCornerShape(ROW_CORNER))
-            .background(SurfaceRaised.copy(alpha = 0.92f))
+            .background(SurfaceRaised)
             .clickable { onItem() }
+            .padding(ROW_PAD),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        // --- Trailing cover art (right edge), clean rounded slot ---
+        // Cover thumbnail (left) — crisp, full-bleed, rounded square.
         if (!s.cover.isNullOrBlank()) {
-            Box(
-                Modifier
-                    .align(Alignment.CenterEnd)
-                    .width(ART_SLOT_WIDTH)
-                    .height(ROW_HEIGHT)
-                    .clipToBounds()
-            ) {
-                AsyncImage(
-                    model = s.cover,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    alignment = s.posterFocal,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(ROW_CORNER))
-                )
-            }
+            AsyncImage(
+                model = s.cover,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                alignment = s.posterFocal,
+                modifier = Modifier
+                    .size(COVER_SIZE)
+                    .clip(RoundedCornerShape(10.dp))
+            )
+            Spacer(Modifier.width(12.dp))
         }
 
-        // --- Foreground content (time, title, EP badge) ---
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .height(ROW_HEIGHT)
-                .padding(ROW_HPAD, ROW_VPAD),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                s.time,
-                color = Flame,
-                fontFamily = PlexMono,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.width(46.dp)
-            )
-            Column(Modifier.weight(1f)) {
+        // Time + title + badges.
+        Column(Modifier.weight(1f)) {
+            // Time (flame) + status badge on the same line.
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    s.title,
-                    color = TextPrimary,
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    s.time, color = Flame, fontFamily = PlexMono,
+                    fontSize = 12.sp, fontWeight = FontWeight.Bold
                 )
-                Spacer(Modifier.height(5.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (s.episode > 0) {
-                        Box(
-                            Modifier
-                                .background(Flame, RoundedCornerShape(6.dp))
-                                .padding(horizontal = 7.dp, vertical = 2.5.dp)
-                        ) {
-                            Text(
-                                "EP ${s.episode}",
-                                color = Void,
-                                fontFamily = PlexMono,
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                if (s.status.isNotBlank()) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        s.status, color = Cool, fontFamily = PlexMono,
+                        fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
                 }
+            }
+            Spacer(Modifier.height(3.dp))
+            Text(
+                s.title,
+                color = TextPrimary, fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold, maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        // EP badge (right) — only when known.
+        if (s.episode > 0) {
+            Spacer(Modifier.width(10.dp))
+            Box(
+                Modifier
+                    .background(Flame, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 9.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    "EP ${s.episode}", color = Void, fontFamily = PlexMono,
+                    fontSize = 10.sp, fontWeight = FontWeight.Bold
+                )
             }
         }
     }

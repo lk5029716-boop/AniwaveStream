@@ -441,7 +441,7 @@ fun WeeklyScheduleScreen(
                     onDay = { activeDayIndex = it; vm.setScheduleDayIndex(it) },
                     shows = shows,
                     onItem = { onAnimeClick(Anime(title = it.title)) },
-                    maxRows = 4,
+                    maxRows = Int.MAX_VALUE,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
