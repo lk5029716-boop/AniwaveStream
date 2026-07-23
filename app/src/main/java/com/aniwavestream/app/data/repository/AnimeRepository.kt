@@ -186,21 +186,60 @@ class AnimeRepository(
         }
     }
 
-    /** A–Z browse: fetch a title-sorted page and client-filter by the first letter.
-     *  Pass "All"/"ALL"/blank to return the full (sorted) list with no letter filter. */
+    /** A–Z browse.
+     *
+     * AniList has no "starts-with" filter, and the obvious approaches are broken:
+     *  - Sorting by TITLE_ROMAJI + fetching page 1 returns only symbol/punctuation
+     *    titles (the first real "A" sits ~index 220), so a 50-item fetch is empty.
+     *  - `search: "A"`/`"O"` return nothing (AniList drops single-letter stopwords),
+     *    and raw search matches substrings, not starts-with.
+     *
+     * Strategy: use `search` (sort SEARCH_MATCH) for every letter; it returns
+     * starts-with titles for B–Z. For the two stopword letters A and O — where
+     * search yields nothing — fall back to paging the TITLE_ROMAJI-sorted catalogue
+     * and collecting titles that actually start with the letter.
+     * "All"/"ALL"/blank returns the popular list. */
     suspend fun byLetter(letter: String): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
-            val all = page(AniListApi.query(BY_LETTER_Q, { int("perPage", 100) })).map { it.toAnime() }
-            val filtered = if (letter.isBlank() || letter.equals("All", ignoreCase = true)) {
-                all
-            } else {
-                all.filter { a ->
-                    val t = a.title.firstOrNull()?.toString().orEmpty()
-                    if (letter == "0-9") t.any { it.isDigit() } else t.equals(letter, ignoreCase = true)
-                }
+            if (letter.isBlank() || letter.equals("All", ignoreCase = true)) {
+                return@runCatching remember(
+                    page(AniListApi.query(POPULAR_Q, { int("perPage", 50) })).map { it.toAnime() }
+                )
             }
-            remember(filtered)
+            val target = letter.first().uppercaseChar()
+            // Search works for B–Z. A and O are stopwords → paging fallback.
+            if (target !in setOf('A', 'O')) {
+                val all = page(
+                    AniListApi.query(SEARCH_Q, { str("q", letter); int("perPage", 50) })
+                ).map { it.toAnime() }
+                val filtered = all.filter { a ->
+                    a.title.firstOrNull()?.equals(letter.first(), ignoreCase = true) == true
+                }
+                if (filtered.isNotEmpty()) return@runCatching remember(filtered)
+                // fall through to paging if search returned nothing unexpected
+            }
+            // Paging fallback (covers A, O, and any search miss).
+            val out = mutableListOf<Anime>()
+            val maxPages = 80
+            for (pageNum in 1..maxPages) {
+                val media = page(
+                    AniListApi.query(BY_LETTER_Q, { int("page", pageNum); int("perPage", 50) })
+                )
+                if (media.isEmpty()) break
+                var passed = false
+                for (m in media) {
+                    val anime = m.toAnime()
+                    val first = anime.title.firstOrNull() ?: continue
+                    if (!first.isLetterOrDigit()) continue
+                    val fu = first.uppercaseChar()
+                    if (fu < target) continue
+                    if (fu > target) { passed = true; break }
+                    if (fu == target) out += anime
+                }
+                if (passed || out.size >= 60) break
+            }
+            remember(out)
         }
     }
 
@@ -338,8 +377,8 @@ query(${'$'}genre: String, ${'$'}perPage: Int) {
 }"""
 
 private const val BY_LETTER_Q = """\
-query(${'$'}perPage: Int) {
-  Page(page: 1, perPage: ${'$'}perPage) {
+query(${'$'}page: Int, ${'$'}perPage: Int) {
+  Page(page: ${'$'}page, perPage: ${'$'}perPage) {
     media(sort: TITLE_ROMAJI, type: ANIME) { ${MEDIA_FIELDS} }
   }
 }

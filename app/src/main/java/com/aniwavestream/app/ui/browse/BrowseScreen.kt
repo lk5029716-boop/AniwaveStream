@@ -66,17 +66,9 @@ private enum class BrowseMode { GENRE, LETTER, YEAR }
 
 private val LETTER_RANGES = listOf(
     "ALL",
-    "A–E", "F–J", "K–O", "P–T", "U–Z"
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+    "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
 )
-private fun rangeLetters(range: String): List<String> = when (range) {
-    "ALL" -> emptyList()
-    "A–E" -> ('A'..'E').map { it.toString() }
-    "F–J" -> ('F'..'J').map { it.toString() }
-    "K–O" -> ('K'..'O').map { it.toString() }
-    "P–T" -> ('P'..'T').map { it.toString() }
-    "U–Z" -> ('U'..'Z').map { it.toString() }
-    else -> emptyList()
-}
 private val DECADES = listOf("2020s", "2010s", "2000s", "1990s", "1980s", "1970s", "1960s", "1950s", "1940s")
 private fun decadeYears(decade: String): List<Int> {
     val start = when (decade) {
@@ -147,10 +139,8 @@ fun BrowseScreen(
                 selected = mode == BrowseMode.LETTER,
                 onClick = {
                     mode = BrowseMode.LETTER
-                    if (selectedRange == null) {
-                        selectedRange = "ALL"
-                        selectedLetter = "All"
-                    }
+                    selectedRange = "ALL"
+                    selectedLetter = "All"
                 }
             )
             BrowseTopBox(
@@ -180,13 +170,11 @@ fun BrowseScreen(
                 onSelect = { selectedGenre = it }
             )
             BrowseMode.LETTER -> LetterRangeSelector(
-                selectedRange = selectedRange,
                 selectedLetter = selectedLetter,
-                onRange = { range ->
+                onSelect = { range ->
                     selectedRange = range
-                    if (range == "ALL") selectedLetter = "All" else selectedLetter = null
-                },
-                onLetter = { selectedLetter = it }
+                    selectedLetter = range  // each range IS a single letter (or "ALL")
+                }
             )
             BrowseMode.YEAR -> DecadeYearSelector(
                 selectedDecade = selectedDecade,
@@ -303,70 +291,31 @@ private fun GenreChips(selectedGenre: Int, onSelect: (Int) -> Unit) {
 
 @Composable
 private fun LetterRangeSelector(
-    selectedRange: String?,
     selectedLetter: String?,
-    onRange: (String) -> Unit,
-    onLetter: (String) -> Unit
+    onSelect: (String) -> Unit
 ) {
-    Column(Modifier.fillMaxWidth()) {
-        // Step 1 — range segments. Only one active at a time.
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(LETTER_RANGES) { range ->
-                val isSel = range == selectedRange
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSel) Flame else SurfaceRaised)
-                        .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(10.dp))
-                        .clickable { onRange(range) }
-                        .padding(horizontal = 20.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        range,
-                        color = if (isSel) Void else TextPrimary,
-                        fontFamily = Bricolage,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                }
-            }
-        }
-
-        // Step 2 — letters for the chosen range, animated in.
-        AnimatedVisibility(
-            visible = selectedRange != null && selectedRange != "ALL",
-            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
-            exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
-        ) {
-            val letters = rangeLetters(selectedRange ?: "")
-            LazyRow(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(LETTER_RANGES) { range ->
+            val isSel = range == selectedLetter
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (isSel) Flame else SurfaceRaised)
+                    .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(20.dp))
+                    .clickable { onSelect(range) },
+                contentAlignment = Alignment.Center
             ) {
-                items(letters) { ch ->
-                    val isSel = ch == selectedLetter
-                    Box(
-                        Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (isSel) Flame else SurfaceRaised)
-                            .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(20.dp))
-                            .clickable { onLetter(ch) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            ch,
-                            color = if (isSel) Void else TextPrimary,
-                            fontFamily = Bricolage,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-                }
+                Text(
+                    range,
+                    color = if (isSel) Void else TextPrimary,
+                    fontFamily = Bricolage,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
             }
         }
     }

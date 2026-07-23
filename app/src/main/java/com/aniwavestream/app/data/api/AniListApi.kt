@@ -58,6 +58,8 @@ object AniListApi {
         // 429 = rate limited: do NOT hammer the already-exhausted budget. Throw RateLimitException
         // immediately so the repository returns Result.failure(RateLimitException) and the UI can
         // show a "slow down / retry" state. 5xx are transient server errors, so retry those.
+        // 429 is rate-limiting; back off (with Retry-After if given) and retry instead of
+        // throwing immediately — an unhandled 429 surfaces as an empty screen in the UI.
         val maxAttempts = 4
         var attempt = 0
         while (true) {
@@ -67,6 +69,13 @@ object AniListApi {
                 val code = resp.code
                 if (resp.isSuccessful) return text
                 Log.w("AniListApi", "HTTP $code on attempt $attempt: ${text.take(200)}")
+                if (code == 429 && attempt < maxAttempts) {
+                    val retryAfter = resp.headers["Retry-After"]?.toLongOrNull()
+                    val waitMs = ((retryAfter ?: 0L) * 1000L).coerceAtLeast(attempt * 1500L).coerceAtMost(15000L)
+                    Log.w("AniListApi", "HTTP 429, backing off ${waitMs}ms (attempt $attempt/$maxAttempts)")
+                    Thread.sleep(waitMs)
+                    return@use
+                }
                 if (code == 429) throw RateLimitException("AniList HTTP 429 (attempt $attempt)")
                 if (code >= 500 && attempt < maxAttempts) {
                     val retryAfter = resp.headers["Retry-After"]?.toLongOrNull()
