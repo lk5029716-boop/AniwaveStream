@@ -357,7 +357,7 @@ private fun DecadeYearSelector(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            maxItemsInEachRow = 10,
+            maxItemsInEachRow = 5,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
