@@ -186,25 +186,21 @@ class AnimeRepository(
         }
     }
 
-    /** A-Z browse: fetch a title-sorted page and client-filter by the first letter.
-     *  Pass "0-9" to match titles starting with a digit. */
+    /** A–Z browse: fetch a title-sorted page and client-filter by the first letter.
+     *  Pass "All"/"ALL"/blank to return the full (sorted) list with no letter filter. */
     suspend fun byLetter(letter: String): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
             val all = page(AniListApi.query(BY_LETTER_Q, { int("perPage", 100) })).map { it.toAnime() }
-            val filtered = all.filter { a ->
-                val t = a.title.firstOrNull()?.toString().orEmpty()
-                if (letter == "0-9") t.any { it.isDigit() } else t.equals(letter, ignoreCase = true)
+            val filtered = if (letter.isBlank() || letter.equals("All", ignoreCase = true)) {
+                all
+            } else {
+                all.filter { a ->
+                    val t = a.title.firstOrNull()?.toString().orEmpty()
+                    if (letter == "0-9") t.any { it.isDigit() } else t.equals(letter, ignoreCase = true)
+                }
             }
             remember(filtered)
-        }
-    }
-
-    /** "All Anime" browse: popular AniList media (no sub-filter). */
-    suspend fun allAnime(perPage: Int = 24): Result<List<Anime>> = withContext(Dispatchers.IO) {
-        runCatching {
-            throttle()
-            remember(page(AniListApi.query(POPULAR_Q, { int("perPage", perPage) })).map { it.toAnime() })
         }
     }
 

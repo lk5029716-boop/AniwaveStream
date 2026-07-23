@@ -62,7 +62,7 @@ import com.aniwavestream.app.ui.theme.TextSecondary
 import com.aniwavestream.app.ui.theme.Void
 
 /** Top-level filter modes for the Browse hub. */
-private enum class BrowseMode { ALL, GENRE, LETTER, YEAR }
+private enum class BrowseMode { GENRE, LETTER, YEAR }
 
 private val LETTER_RANGES = listOf(
     "ALL",
@@ -112,7 +112,6 @@ fun BrowseScreen(
         loading = true
         error = null
         val result = when (mode) {
-            BrowseMode.ALL -> repository.allAnime()
             BrowseMode.GENRE -> repository.byGenre(selectedGenre)
             BrowseMode.LETTER -> repository.byLetter(selectedLetter ?: "All")
             BrowseMode.YEAR -> repository.byYear(selectedYear ?: 2026)
@@ -145,8 +144,14 @@ fun BrowseScreen(
         ) {
             BrowseTopBox(
                 label = "All Anime",
-                selected = mode == BrowseMode.ALL,
-                onClick = { mode = BrowseMode.ALL }
+                selected = mode == BrowseMode.LETTER,
+                onClick = {
+                    mode = BrowseMode.LETTER
+                    if (selectedRange == null) {
+                        selectedRange = "ALL"
+                        selectedLetter = "All"
+                    }
+                }
             )
             BrowseTopBox(
                 label = "Genre",
@@ -170,7 +175,6 @@ fun BrowseScreen(
 
         // Contextual sub-filter panel under the selected top box.
         when (mode) {
-            BrowseMode.ALL -> {} // no sub-filter
             BrowseMode.GENRE -> GenreChips(
                 selectedGenre = selectedGenre,
                 onSelect = { selectedGenre = it }
@@ -201,6 +205,9 @@ fun BrowseScreen(
             loading -> PosterGridShimmer(modifier = Modifier.fillMaxSize())
             error != null -> ErrorBox(error!!) {
                 // Retry: force a reload by toggling selectedLetter/Year if set.
+                val m = mode; mode = BrowseMode.GENRE; mode = m
+            }
+            items.isEmpty() -> ErrorBox("No anime found for this filter.") {
                 val m = mode; mode = BrowseMode.GENRE; mode = m
             }
             else -> LazyVerticalGrid(
