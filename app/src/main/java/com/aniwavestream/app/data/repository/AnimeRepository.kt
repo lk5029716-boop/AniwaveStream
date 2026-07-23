@@ -237,7 +237,7 @@ class AnimeRepository(
     }
 
     /** Core letter load (no caching/retry wrapper). */
-    private fun loadByLetterUncached(letter: String): List<Anime> {
+    private suspend fun loadByLetterUncached(letter: String): List<Anime> {
         throttle()
         if (letter.isBlank() || letter.equals("All", ignoreCase = true)) {
             return page(AniListApi.query(POPULAR_Q, { int("perPage", 50) })).map { it.toAnime() }
