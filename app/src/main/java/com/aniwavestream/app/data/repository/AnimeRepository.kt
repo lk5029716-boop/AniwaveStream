@@ -277,18 +277,33 @@ class AnimeRepository(
         return out
     }
 
-    /** Release year browse: AniList media filtered by seasonYear. Results are cached
-     *  per year so re-tapping a decade/year doesn't re-hit the network (and re-risks 429). */
+    /** Release year browse: AniList media filtered by seasonYear. Paginates every page
+     *  (AniList caps perPage at 50) so the year view shows the FULL season list, not a
+     *  truncated 24 — up to MAX_YEAR_PAGES pages (~750 titles). Cached per year so
+     *  re-tapping never re-hits the network. */
     suspend fun byYear(year: Int): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             val key = "year:$year"
             cacheResults[key]?.let { return@runCatching it }
-            val out = retryQuery {
-                page(AniListApi.query(BY_YEAR_Q, { int("year", year); int("perPage", 24) })).map { it.toAnime() }
-            }
+            val out = retryQuery { loadByYearUncached(year) }
             cacheResults[key] = out
             remember(out)
         }
+    }
+
+    /** Core year load (no caching/retry wrapper). Walks every result page until the
+     *  API returns an empty page or we hit MAX_YEAR_PAGES. */
+    private suspend fun loadByYearUncached(year: Int): List<Anime> {
+        val out = mutableListOf<Anime>()
+        for (p in 1..MAX_YEAR_PAGES) {
+            throttle()
+            val pageItems = page(
+                AniListApi.query(BY_YEAR_Q, { int("year", year); int("page", p); int("perPage", 50) })
+            ).map { it.toAnime() }
+            if (pageItems.isEmpty()) break
+            out += pageItems
+        }
+        return out.distinctBy { it.id }
     }
 
     // ---- Detail + extras ----
@@ -424,9 +439,11 @@ query(${'$'}page: Int, ${'$'}perPage: Int) {
 }
 """
 
+private const val MAX_YEAR_PAGES = 15
+
 private const val BY_YEAR_Q = """\
-query(${'$'}year: Int, ${'$'}perPage: Int) {
-  Page(page: 1, perPage: ${'$'}perPage) {
+query(${'$'}year: Int, ${'$'}page: Int, ${'$'}perPage: Int) {
+  Page(page: ${'$'}page, perPage: ${'$'}perPage) {
     media(seasonYear: ${'$'}year, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
   }
 }
