@@ -19,14 +19,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -328,12 +322,8 @@ private fun DecadeYearSelector(
     onDecade: (String) -> Unit,
     onYear: (Int) -> Unit
 ) {
-    val years = decadeYears(selectedDecade ?: "2020s")
-    val listState = rememberLazyListState()
-    val fling = rememberSnapFlingBehavior(listState)
-
     Column(Modifier.fillMaxWidth()) {
-        // Step1 — decade chips (one active, accent filled).
+        // Decade tabs (one active at a time).
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -360,37 +350,36 @@ private fun DecadeYearSelector(
             }
         }
 
-        // Step2 — years of the selected decade, horizontally scrollable with snapping.
-        AnimatedVisibility(
-            visible = selectedDecade != null,
-            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
-            exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
+        Spacer(Modifier.height(12.dp))
+
+        // Years of the selected decade as a wrapping 2-row-ish chip grid.
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            maxItemsInEachRow = 10,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            LazyRow(
-                state = listState,
-                flingBehavior = fling,
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(years, key = { it }) { year ->
-                    val isSel = year == selectedYear
-                    Box(
-                        Modifier
-                            .size(width = 64.dp, height = 40.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (isSel) Flame else SurfaceRaised)
-                            .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(20.dp))
-                            .clickable { onYear(year) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            year.toString(),
-                            color = if (isSel) Void else TextPrimary,
-                            fontFamily = Bricolage,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
+            val years = decadeYears(selectedDecade ?: "2020s")
+            years.forEach { year ->
+                val isSel = year == selectedYear
+                Box(
+                    Modifier
+                        .size(width = 56.dp, height = 38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSel) Flame else SurfaceRaised)
+                        .border(1.dp, if (isSel) Flame else Hairline, RoundedCornerShape(12.dp))
+                        .clickable { onYear(year) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        year.toString(),
+                        color = if (isSel) Void else TextPrimary,
+                        fontFamily = Bricolage,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
                 }
             }
         }
