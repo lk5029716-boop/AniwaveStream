@@ -98,6 +98,13 @@ fun BrowseScreen(
     // feel professional instead of flashing a fatal error on a slow/rate-limited API.
     var reloadToken by remember { mutableIntStateOf(0) }
     LaunchedEffect(mode, selectedGenre, selectedRange, selectedLetter, selectedDecade, selectedYear, reloadToken) {
+        // YEAR mode needs a concrete year before querying (decade chip sets one).
+        if (mode == BrowseMode.YEAR && selectedYear == null) {
+            loading = false
+            error = null
+            items = emptyList()
+            return@LaunchedEffect
+        }
         loading = true
         error = null
         // Clear grid immediately so year/genre switches never show stale wrong-year posters.
@@ -105,7 +112,7 @@ fun BrowseScreen(
         val result = when (mode) {
             BrowseMode.GENRE -> repository.byGenre(selectedGenre)
             BrowseMode.LETTER -> repository.byLetter(selectedLetter ?: "All")
-            BrowseMode.YEAR -> repository.byYear(selectedYear ?: 2026)
+            BrowseMode.YEAR -> repository.byYear(selectedYear!!)
         }
         result
             .onSuccess {

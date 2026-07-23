@@ -280,10 +280,13 @@ class AnimeRepository(
 
     /** Release year browse: AniList media filtered by seasonYear.
      *
-     *  Fetches a small number of pages (AniList caps perPage at 50) so the Browse
-     *  grid fills quickly without burning the unauthenticated rate budget. Walking
-     *  15 pages previously caused HTTP 429 → "Something went sideways" on every
-     *  year tap. Cached per year so re-selecting never re-hits the network. */
+     *  Root cause of "Something went sideways" on every year tap: [BY_YEAR_Q]
+     *  was written as a Kotlin raw string starting with """\ — that injects a
+     *  literal backslash into the GraphQL body, so AniList rejects the query
+     *  with a syntax error before any media is returned.
+     *
+     *  Fetches at most 2 pages (AniList caps perPage at 50). Cached per year so
+     *  re-selecting never re-hits the network. Partial success on mid-walk 429. */
     suspend fun byYear(year: Int): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             val key = "year:$year"
@@ -491,7 +494,10 @@ query(${'$'}genre: String, ${'$'}perPage: Int) {
   }
 }"""
 
-private const val BY_LETTER_Q = """\
+// NOTE: Kotlin raw strings do NOT treat \ as escape. Never use """\ — that
+// injects a literal backslash and AniList returns a GraphQL syntax error
+// ("Something went sideways" on Browse Release Year / letter paging).
+private const val BY_LETTER_Q = """
 query(${'$'}page: Int, ${'$'}perPage: Int) {
   Page(page: ${'$'}page, perPage: ${'$'}perPage) {
     media(sort: TITLE_ROMAJI, type: ANIME) { ${MEDIA_FIELDS} }
@@ -499,10 +505,10 @@ query(${'$'}page: Int, ${'$'}perPage: Int) {
 }
 """
 
-/** One page (50) is enough for Browse; a second page only if page 1 is full. */
+/** One page (50) fills the Browse grid; a second page only if page 1 is full. */
 private const val MAX_YEAR_PAGES = 2
 
-private const val BY_YEAR_Q = """\
+private const val BY_YEAR_Q = """
 query(${'$'}year: Int, ${'$'}page: Int, ${'$'}perPage: Int) {
   Page(page: ${'$'}page, perPage: ${'$'}perPage) {
     media(seasonYear: ${'$'}year, sort: POPULARITY_DESC, type: ANIME) { ${MEDIA_FIELDS} }
