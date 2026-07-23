@@ -141,21 +141,28 @@ fun DetailScreen(
     var crash by remember { mutableStateOf<Throwable?>(null) }
     var synopsisExpanded by remember { mutableStateOf(false) }
     val myList by library.myListIds.collectAsState(initial = emptySet())
-    val inList = animeId in myList
+    // Prefer resolved AniList Media.id after load (nav may still pass a legacy MAL id).
+    val resolvedId = anime?.id ?: animeId
+    val inList = resolvedId in myList
     val scope = rememberCoroutineScope()
 
     fun loadAll() {
         loading = true
         error = null
+        characters = emptyList()
+        related = emptyList()
         scope.launch {
-            repository.detail(animeId)
-                .onSuccess { data ->
+            // One GraphQL round-trip: media + key characters + recommendations.
+            // Root cause of empty Key Characters: AlMedia.toAnime() used idMal as Anime.id
+            // while characters() queried Media(id: …) expecting AniList Media.id — wrong
+            // id → Not Found → silent empty row. detailBundle + AniList ids fix that.
+            repository.detailBundle(animeId)
+                .onSuccess { bundle ->
                     runCatching {
-                        anime = data
-                        // Real episode list: count comes from AniList media.episodes.
-                        // Playback is driven by ep.number via the real streaming backend,
-                        // so no demo stream URLs are baked in here.
-                        val epCount = (data.episodes ?: 0).coerceAtLeast(0)
+                        anime = bundle.anime
+                        characters = bundle.characters
+                        related = bundle.recommendations
+                        val epCount = (bundle.anime.episodes ?: 0).coerceAtLeast(0)
                         episodes = if (epCount > 0) {
                             (1..epCount).map { n ->
                                 Episode(
@@ -170,13 +177,34 @@ fun DetailScreen(
                     loading = false
                 }
                 .onFailure { e ->
-                    error = e
-                    loading = false
+                    // Fallback: still show the page if only the bundle query fails
+                    // (e.g. partial GraphQL); try separate calls.
+                    repository.detail(animeId)
+                        .onSuccess { data ->
+                            anime = data
+                            val epCount = (data.episodes ?: 0).coerceAtLeast(0)
+                            episodes = if (epCount > 0) {
+                                (1..epCount).map { n ->
+                                    Episode(
+                                        number = n,
+                                        title = "Episode $n",
+                                        durationLabel = "",
+                                        streamUrl = ""
+                                    )
+                                }
+                            } else emptyList()
+                            loading = false
+                            // Use resolved AniList id when available so characters always hit
+                            // Media(id: anilistId) rather than a legacy MAL id.
+                            val charId = data.id
+                            repository.characters(charId).onSuccess { characters = it }
+                            repository.recommendations(charId).onSuccess { related = it }
+                        }
+                        .onFailure {
+                            error = e
+                            loading = false
+                        }
                 }
-            // characters/recommendations already return Result<> (internally runCatching),
-            // so a failed fetch lands in onFailure and never crashes the screen.
-            repository.characters(animeId).onSuccess { characters = it }
-            repository.recommendations(animeId).onSuccess { related = it }
         }
     }
 
@@ -345,7 +373,7 @@ fun DetailScreen(
                                     SecondaryPillButton(
                                         text = if (inList) "In List" else "My List",
                                         leadingIcon = if (inList) Icons.Default.Check else Icons.Default.Add,
-                                        onClick = { scope.launch { library.toggleMyList(animeId) } }
+                                        onClick = { scope.launch { library.toggleMyList(resolvedId) } }
                                     )
                                 }
                             }

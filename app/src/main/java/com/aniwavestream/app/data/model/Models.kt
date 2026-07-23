@@ -206,13 +206,23 @@ data class AlCharacterNode(
 data class AlName(val full: String = "")
 
 @Serializable
-data class AlImage(val large: String? = null)
+data class AlImage(
+    val large: String? = null,
+    val medium: String? = null
+)
 
 @Serializable
 data class AlRecommendationConnection(val nodes: List<AlRecommendationNode> = emptyList())
 
+/** AniList Recommendation: [mediaRecommendation] is the suggested title (not [media], the source). */
 @Serializable
-data class AlRecommendationNode(val media: AlMedia? = null)
+data class AlRecommendationNode(
+    val mediaRecommendation: AlMedia? = null,
+    /** Legacy alias some payloads still use; prefer mediaRecommendation. */
+    val media: AlMedia? = null
+) {
+    val recommended: AlMedia? get() = mediaRecommendation ?: media
+}
 
 /** Strip HTML tags from AniList descriptions and fall back to romaji title. */
 fun AlMedia.toAnime(): Anime {
@@ -223,8 +233,11 @@ fun AlMedia.toAnime(): Anime {
         ?.replace(Regex("<[^>]*>"), "")
         ?.trim()
         .orEmpty()
+    // Always use AniList Media.id as the app id. Detail/characters/recommendations
+    // query AniList with Media(id: …); using idMal here silently broke Key Characters
+    // (wrong media or null) while list screens still looked fine via the in-memory cache.
     return Anime(
-        id = idMal ?: id,
+        id = id,
         title = title,
         synopsis = synopsis,
         posterUrl = poster,
@@ -242,10 +255,12 @@ fun AlMedia.toAnime(): Anime {
 
 fun AlCharacterEdge.toCharacter(): Character? {
     val n = node ?: return null
+    val name = n.name?.full?.trim().orEmpty()
+    if (n.id == 0 && name.isEmpty()) return null
     return Character(
         id = n.id,
-        name = n.name?.full ?: "",
-        imageUrl = n.image?.large,
+        name = name.ifEmpty { "Unknown" },
+        imageUrl = n.image?.large ?: n.image?.medium,
         role = role
     )
 }
@@ -406,7 +421,8 @@ data class DayAiring(
     val episode: Int = 0,  // released episode number (0 = unknown)
     val cover: String? = null,
     val posterFocal: Alignment = PosterFocalDefault, // crop bias: top-third (object-position ~center 22%), overridable per title
-    val airingAt: Long = 0L  // epoch SECONDS of the next airing (0 = unknown)
+    val airingAt: Long = 0L,  // epoch SECONDS of the next airing (0 = unknown)
+    val animeId: Int = 0      // AniList Media.id for detail navigation
 )
 
 /**
@@ -419,7 +435,17 @@ fun buildRealSchedule(shows: List<AiringSchedule>): Map<String, List<DayAiring>>
     val byDay = ScheduleDays.associateWith { mutableListOf<DayAiring>() }
     for (s in shows.sortedByAiring()) {
         cal.timeInMillis = s.airingAt * 1000L
-        val dayName = ScheduleDays.getOrNull(cal.get(java.util.Calendar.DAY_OF_WEEK) - 2) ?: continue
+        // Calendar.DAY_OF_WEEK: SUNDAY=1 … SATURDAY=7. Old (dow - 2) dropped Sunday.
+        val dayName = when (cal.get(java.util.Calendar.DAY_OF_WEEK)) {
+            java.util.Calendar.MONDAY -> "monday"
+            java.util.Calendar.TUESDAY -> "tuesday"
+            java.util.Calendar.WEDNESDAY -> "wednesday"
+            java.util.Calendar.THURSDAY -> "thursday"
+            java.util.Calendar.FRIDAY -> "friday"
+            java.util.Calendar.SATURDAY -> "saturday"
+            java.util.Calendar.SUNDAY -> "sunday"
+            else -> continue
+        }
         val hh = cal.get(java.util.Calendar.HOUR_OF_DAY)
         val mm = cal.get(java.util.Calendar.MINUTE)
         val time = "%02d:%02d".format(hh, mm)
@@ -428,7 +454,9 @@ fun buildRealSchedule(shows: List<AiringSchedule>): Map<String, List<DayAiring>>
             s.status.equals("RELEASING", true) && (s.totalEpisodes == null || s.episode < (s.totalEpisodes ?: Int.MAX_VALUE)) -> "Hype Airing"
             else -> "New"
         }
-        byDay[dayName]?.add(DayAiring(time, s.title, status, s.episode, s.cover, PosterFocalDefault, s.airingAt))
+        byDay[dayName]?.add(
+            DayAiring(time, s.title, status, s.episode, s.cover, PosterFocalDefault, s.airingAt, s.id)
+        )
     }
     return byDay
 }

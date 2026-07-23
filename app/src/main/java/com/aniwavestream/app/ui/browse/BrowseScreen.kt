@@ -91,21 +91,32 @@ fun BrowseScreen(
     var selectedYear by remember { mutableStateOf<Int?>(null) }
 
     var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<Throwable?>(null) }
     var items by remember { mutableStateOf<List<Anime>>(emptyList()) }
 
-    // (Re)load whenever the active filter changes.
-    LaunchedEffect(mode, selectedGenre, selectedRange, selectedLetter, selectedDecade, selectedYear) {
+    // (Re)load whenever the active filter changes. Shimmer while waiting so year taps
+    // feel professional instead of flashing a fatal error on a slow/rate-limited API.
+    var reloadToken by remember { mutableIntStateOf(0) }
+    LaunchedEffect(mode, selectedGenre, selectedRange, selectedLetter, selectedDecade, selectedYear, reloadToken) {
         loading = true
         error = null
+        // Clear grid immediately so year/genre switches never show stale wrong-year posters.
+        items = emptyList()
         val result = when (mode) {
             BrowseMode.GENRE -> repository.byGenre(selectedGenre)
             BrowseMode.LETTER -> repository.byLetter(selectedLetter ?: "All")
             BrowseMode.YEAR -> repository.byYear(selectedYear ?: 2026)
         }
         result
-            .onSuccess { items = it; loading = false }
-            .onFailure { error = it.message ?: "Failed to load"; loading = false }
+            .onSuccess {
+                items = it
+                loading = false
+                error = null
+            }
+            .onFailure { e ->
+                error = e
+                loading = false
+            }
     }
 
     Column(
@@ -187,11 +198,10 @@ fun BrowseScreen(
         when {
             loading -> PosterGridShimmer(modifier = Modifier.fillMaxSize())
             error != null -> ErrorBox(error!!) {
-                // Retry: force a reload by toggling selectedLetter/Year if set.
-                val m = mode; mode = BrowseMode.GENRE; mode = m
+                reloadToken++
             }
             items.isEmpty() -> ErrorBox("No anime found for this filter.") {
-                val m = mode; mode = BrowseMode.GENRE; mode = m
+                reloadToken++
             }
             else -> LazyVerticalGrid(
                 columns = GridCells.Fixed(3),

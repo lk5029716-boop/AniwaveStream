@@ -6,6 +6,7 @@ import com.aniwavestream.app.data.model.AiringSchedule
 import com.aniwavestream.app.data.model.AlResponse
 import com.aniwavestream.app.data.model.Anime
 import com.aniwavestream.app.data.model.Character
+import com.aniwavestream.app.data.model.DetailData
 import com.aniwavestream.app.data.model.toAnime
 import com.aniwavestream.app.data.model.toCharacter
 import kotlinx.coroutines.Dispatchers
@@ -277,10 +278,12 @@ class AnimeRepository(
         return out
     }
 
-    /** Release year browse: AniList media filtered by seasonYear. Paginates every page
-     *  (AniList caps perPage at 50) so the year view shows the FULL season list, not a
-     *  truncated 24 — up to MAX_YEAR_PAGES pages (~750 titles). Cached per year so
-     *  re-tapping never re-hits the network. */
+    /** Release year browse: AniList media filtered by seasonYear.
+     *
+     *  Fetches a small number of pages (AniList caps perPage at 50) so the Browse
+     *  grid fills quickly without burning the unauthenticated rate budget. Walking
+     *  15 pages previously caused HTTP 429 → "Something went sideways" on every
+     *  year tap. Cached per year so re-selecting never re-hits the network. */
     suspend fun byYear(year: Int): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             val key = "year:$year"
@@ -291,29 +294,61 @@ class AnimeRepository(
         }
     }
 
-    /** Core year load (no caching/retry wrapper). Walks every result page until the
-     *  API returns an empty page or we hit MAX_YEAR_PAGES. */
+    /** Core year load. First page is required; later pages are best-effort so a
+     *  mid-walk 429 still returns the titles already loaded. */
     private suspend fun loadByYearUncached(year: Int): List<Anime> {
         val out = mutableListOf<Anime>()
         for (p in 1..MAX_YEAR_PAGES) {
-            throttle()
-            val pageItems = page(
-                AniListApi.query(BY_YEAR_Q, { int("year", year); int("page", p); int("perPage", 50) })
-            ).map { it.toAnime() }
-            if (pageItems.isEmpty()) break
-            out += pageItems
+            try {
+                throttle()
+                val pageItems = page(
+                    AniListApi.query(BY_YEAR_Q, { int("year", year); int("page", p); int("perPage", 50) })
+                ).map { it.toAnime() }
+                if (pageItems.isEmpty()) break
+                out += pageItems
+                // Enough for a polished grid; more pages only burn rate limit.
+                if (out.size >= 50) break
+            } catch (e: Exception) {
+                if (out.isNotEmpty()) break // return partial success
+                throw e
+            }
         }
         return out.distinctBy { it.id }
     }
 
     // ---- Detail + extras ----
 
+    /**
+     * Single GraphQL round-trip for detail + characters + recommendations.
+     * Avoids the old 3-request chain where characters/recs often hit 429 after
+     * home+detail had already spent the rate budget, leaving Key Characters empty.
+     */
+    suspend fun detailBundle(id: Int): Result<DetailData> = withContext(Dispatchers.IO) {
+        runCatching {
+            throttle()
+            val media = fetchMediaByAppId(id, DETAIL_BUNDLE_Q, DETAIL_BUNDLE_BY_MAL_Q)
+            val anime = media.toAnime().also { cache[it.id] = it }
+            val characters = media.characters?.edges
+                ?.mapNotNull { it.toCharacter() }
+                ?.take(12)
+                ?: emptyList()
+            val recommendations = media.recommendations?.nodes
+                ?.mapNotNull { it.recommended }
+                ?.distinctBy { it.id }
+                ?.take(12)
+                ?.map { it.toAnime().also { a -> cache[a.id] = a } }
+                ?: emptyList()
+            DetailData(anime = anime, characters = characters, recommendations = recommendations)
+        }
+    }
+
     suspend fun detail(id: Int): Result<Anime> = withContext(Dispatchers.IO) {
         runCatching {
+            // Prefer AniList Media.id (what list screens now store). Cache hit is fine
+            // for title/poster; Key Characters always go through detailBundle / characters().
             cache[id]?.let { return@runCatching it }
             throttle()
-            val media = parse(AniListApi.query(DETAIL_Q, { int("id", id) })).data?.Media
-                ?: throw RuntimeException("AniList: no media for id $id")
+            val media = fetchMediaByAppId(id, DETAIL_Q, DETAIL_BY_MAL_Q)
             media.toAnime().also { cache[it.id] = it }
         }
     }
@@ -321,8 +356,8 @@ class AnimeRepository(
     suspend fun characters(id: Int): Result<List<Character>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
-            val media = parse(AniListApi.query(CHAR_Q, { int("id", id) })).data?.Media
-            media?.characters?.edges
+            val media = fetchMediaByAppId(id, CHAR_Q, CHAR_BY_MAL_Q)
+            media.characters?.edges
                 ?.mapNotNull { it.toCharacter() }
                 ?.take(12)
                 ?: emptyList()
@@ -332,9 +367,9 @@ class AnimeRepository(
     suspend fun recommendations(id: Int): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             throttle()
-            val media = parse(AniListApi.query(REC_Q, { int("id", id) })).data?.Media
-            media?.recommendations?.nodes
-                ?.mapNotNull { it.media }
+            val media = fetchMediaByAppId(id, REC_Q, REC_BY_MAL_Q)
+            media.recommendations?.nodes
+                ?.mapNotNull { it.recommended }
                 ?.distinctBy { it.id }
                 ?.take(12)
                 ?.map { it.toAnime() }
@@ -343,23 +378,48 @@ class AnimeRepository(
     }
 
     /**
+     * Resolve media by app id. Primary: AniList Media.id (current app convention).
+     * Fallback: idMal — covers legacy My List / progress entries that still store MAL ids
+     * from when [AlMedia.toAnime] incorrectly preferred idMal.
+     */
+    private fun fetchMediaByAppId(id: Int, byAniListIdQ: String, byMalIdQ: String): AlMedia {
+        val byId = runCatching {
+            parse(AniListApi.query(byAniListIdQ, { int("id", id) })).data?.Media
+        }.getOrNull()
+        if (byId != null) return byId
+        val byMal = runCatching {
+            parse(AniListApi.query(byMalIdQ, { int("id", id) })).data?.Media
+        }.getOrNull()
+        if (byMal != null) {
+            // Re-key cache under AniList id so later character/detail calls stay consistent.
+            byMal.toAnime().also { cache[it.id] = it }
+            return byMal
+        }
+        throw RuntimeException("AniList: no media for id $id")
+    }
+
+    /**
      * REAL weekly schedule from AniList AiringSchedule. We fetch the next 7 days of
      * airing episodes (time-windowed) and hand the flat list back; the ViewModel
      * groups it by weekday + derives "EP x" + status. No mock data.
+     * Retries on transient 429/5xx so the home schedule doesn't flash empty.
      */
-    suspend fun schedule(perPage: Int = 80): Result<List<AiringSchedule>> = withContext(Dispatchers.IO) {
+    suspend fun schedule(perPage: Int = 50): Result<List<AiringSchedule>> = withContext(Dispatchers.IO) {
         runCatching {
-            throttle()
-            val now = System.currentTimeMillis() / 1000L
-            val from = now              // only UPCOMING airings (this week onward) — not 1970-era
-            val to = now + (7L * 24 * 3600) // next 7 days, in AniList unix-seconds
-            val text = AniListApi.query(AIRING_Q) {
-                int("per", perPage)
-                int("from", from.toInt())
-                int("to", to.toInt())
+            retryQuery {
+                throttle()
+                val now = System.currentTimeMillis() / 1000L
+                val from = now
+                val to = now + (7L * 24 * 3600)
+                // airingAt_* args are Int in AniList schema; values fit until ~2038.
+                val text = AniListApi.query(AIRING_Q) {
+                    int("per", perPage)
+                    int("from", from.toInt())
+                    int("to", to.toInt())
+                }
+                val resp = parse(text)
+                resp.data?.Page?.airingSchedules?.mapNotNull { it.toAiring() } ?: emptyList()
             }
-            val resp = parse(text)
-            resp.data?.Page?.airingSchedules?.mapNotNull { it.toAiring() } ?: emptyList()
         }
     }
 
@@ -439,7 +499,8 @@ query(${'$'}page: Int, ${'$'}perPage: Int) {
 }
 """
 
-private const val MAX_YEAR_PAGES = 15
+/** One page (50) is enough for Browse; a second page only if page 1 is full. */
+private const val MAX_YEAR_PAGES = 2
 
 private const val BY_YEAR_Q = """\
 query(${'$'}year: Int, ${'$'}page: Int, ${'$'}perPage: Int) {
@@ -454,11 +515,53 @@ query(${'$'}id: Int) {
   Media(id: ${'$'}id, type: ANIME) { ${MEDIA_FIELDS} }
 }"""
 
+/** Shared character + recommendation selection (AniList Media.id or idMal). */
+private const val CHAR_REC_FIELDS = """
+    characters(sort: ROLE, perPage: 12) {
+      edges { role node { id name { full } image { large medium } } }
+    }
+    recommendations(sort: RATING_DESC, perPage: 12) {
+      nodes { mediaRecommendation { ${MEDIA_FIELDS} } }
+    }
+"""
+
+/** Detail + characters + recommendations in ONE request (rate-limit friendly). */
+private const val DETAIL_BUNDLE_Q = """
+query(${'$'}id: Int) {
+  Media(id: ${'$'}id, type: ANIME) {
+    ${MEDIA_FIELDS}
+    ${CHAR_REC_FIELDS}
+  }
+}"""
+
+/** Same as [DETAIL_BUNDLE_Q] but resolves by MyAnimeList id (legacy app ids). */
+private const val DETAIL_BUNDLE_BY_MAL_Q = """
+query(${'$'}id: Int) {
+  Media(idMal: ${'$'}id, type: ANIME) {
+    ${MEDIA_FIELDS}
+    ${CHAR_REC_FIELDS}
+  }
+}"""
+
+private const val DETAIL_BY_MAL_Q = """
+query(${'$'}id: Int) {
+  Media(idMal: ${'$'}id, type: ANIME) { ${MEDIA_FIELDS} }
+}"""
+
 private const val CHAR_Q = """
 query(${'$'}id: Int) {
   Media(id: ${'$'}id, type: ANIME) {
     characters(sort: ROLE, perPage: 12) {
-      edges { role node { id name { full } image { large } } }
+      edges { role node { id name { full } image { large medium } } }
+    }
+  }
+}"""
+
+private const val CHAR_BY_MAL_Q = """
+query(${'$'}id: Int) {
+  Media(idMal: ${'$'}id, type: ANIME) {
+    characters(sort: ROLE, perPage: 12) {
+      edges { role node { id name { full } image { large medium } } }
     }
   }
 }"""
@@ -467,7 +570,16 @@ private const val REC_Q = """
 query(${'$'}id: Int) {
   Media(id: ${'$'}id, type: ANIME) {
     recommendations(sort: RATING_DESC, perPage: 12) {
-      nodes { media { ${MEDIA_FIELDS} } }
+      nodes { mediaRecommendation { ${MEDIA_FIELDS} } }
+    }
+  }
+}"""
+
+private const val REC_BY_MAL_Q = """
+query(${'$'}id: Int) {
+  Media(idMal: ${'$'}id, type: ANIME) {
+    recommendations(sort: RATING_DESC, perPage: 12) {
+      nodes { mediaRecommendation { ${MEDIA_FIELDS} } }
     }
   }
 }"""

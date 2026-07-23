@@ -440,8 +440,19 @@ fun WeeklyScheduleScreen(
                     activeDayIndex = activeDayIndex,
                     onDay = { activeDayIndex = it; vm.setScheduleDayIndex(it) },
                     shows = shows,
-                    onItem = { onAnimeClick(Anime(title = it.title)) },
+                    onItem = {
+                        onAnimeClick(
+                            Anime(
+                                id = it.animeId,
+                                title = it.title,
+                                posterUrl = it.cover
+                            )
+                        )
+                    },
                     maxRows = Int.MAX_VALUE,
+                    loading = state.scheduleLoading,
+                    error = state.scheduleError,
+                    onRetry = { vm.retrySchedule() },
                     modifier = Modifier.fillMaxWidth()
                 )
             }

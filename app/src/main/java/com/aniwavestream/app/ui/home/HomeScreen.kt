@@ -203,6 +203,20 @@ fun HomeScreen(
                                 onDay = { viewModel.setScheduleDayIndex(it) },
                                 shows = state.schedule,
                                 maxRows = 4,
+                                loading = state.scheduleLoading,
+                                error = state.scheduleError,
+                                onRetry = { viewModel.retrySchedule() },
+                                onItem = { day ->
+                                    if (day.animeId != 0) {
+                                        onAnimeClick(
+                                            Anime(
+                                                id = day.animeId,
+                                                title = day.title,
+                                                posterUrl = day.cover
+                                            )
+                                        )
+                                    }
+                                },
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                             Spacer(Modifier.height(8.dp))

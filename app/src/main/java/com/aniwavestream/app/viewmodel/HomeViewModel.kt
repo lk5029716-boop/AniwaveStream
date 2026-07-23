@@ -36,6 +36,9 @@ data class HomeUiState(
     val upcoming: List<Anime> = emptyList(),
     val scheduleDayIndex: Int = 3,
     val schedule: List<DayAiring> = emptyList(),
+    /** True while the weekly airing API is in flight (independent of home catalog load). */
+    val scheduleLoading: Boolean = false,
+    val scheduleError: String? = null,
     val continueWatching: List<ContinueItem> = emptyList()
 )
 
@@ -47,7 +50,25 @@ class HomeViewModel(
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
+    /** Full week map cached after one successful schedule fetch — day pills only re-slice. */
+    private var scheduleByDay: Map<String, List<DayAiring>> = emptyMap()
+    private var scheduleFetched = false
+
     init {
+        // Default day pill to "today" so the schedule feels live on open.
+        val todayIdx = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK).let { dow ->
+            when (dow) {
+                java.util.Calendar.MONDAY -> 0
+                java.util.Calendar.TUESDAY -> 1
+                java.util.Calendar.WEDNESDAY -> 2
+                java.util.Calendar.THURSDAY -> 3
+                java.util.Calendar.FRIDAY -> 4
+                java.util.Calendar.SATURDAY -> 5
+                else -> 6 // Sunday
+            }
+        }
+        _state.update { it.copy(scheduleDayIndex = todayIdx) }
+
         refresh()
         viewModelScope.launch {
             combine(library.progressMap, library.myListIds) { progress, _ -> progress }
@@ -64,6 +85,8 @@ class HomeViewModel(
     fun refresh() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
+            // Kick schedule in parallel so the card can shimmer while the catalog loads.
+            loadSchedule(force = true)
             val trending = async { repository.trending() }
             val top = async { repository.topRated() }
             val newRel = async { repository.newReleases() }
@@ -103,25 +126,62 @@ class HomeViewModel(
                     upcoming = up.getOrDefault(emptyList()).ifEmpty { DemoUpcoming }
                 )
             }
-            loadSchedule(_state.value.scheduleDayIndex)
         }
     }
 
     fun setScheduleDayIndex(index: Int) {
-        _state.update { it.copy(scheduleDayIndex = index) }
-        loadSchedule(index)
+        val day = ScheduleDays.getOrElse(index) { ScheduleDays[0] }
+        _state.update {
+            it.copy(
+                scheduleDayIndex = index,
+                // Instant day switch from cache — no network wait.
+                schedule = scheduleByDay[day] ?: emptyList()
+            )
+        }
+        // If we never got data (cold fail), retry in background.
+        if (!scheduleFetched) loadSchedule(force = false)
     }
 
-    private fun loadSchedule(index: Int) {
+    fun retrySchedule() {
+        loadSchedule(force = true)
+    }
+
+    private fun loadSchedule(force: Boolean) {
+        if (!force && scheduleFetched) {
+            val day = ScheduleDays.getOrElse(_state.value.scheduleDayIndex) { ScheduleDays[0] }
+            _state.update {
+                it.copy(
+                    scheduleLoading = false,
+                    scheduleError = null,
+                    schedule = scheduleByDay[day] ?: emptyList()
+                )
+            }
+            return
+        }
         viewModelScope.launch {
-            val day = ScheduleDays.getOrElse(index) { ScheduleDays[0] }
+            _state.update { it.copy(scheduleLoading = true, scheduleError = null) }
             repository.schedule()
                 .onSuccess { list: List<AiringSchedule> ->
-                    val map = if (list.isEmpty()) emptyMap() else buildRealSchedule(list)
-                    _state.update { it.copy(schedule = map[day] ?: emptyList()) }
+                    scheduleByDay = if (list.isEmpty()) emptyMap() else buildRealSchedule(list)
+                    scheduleFetched = true
+                    val day = ScheduleDays.getOrElse(_state.value.scheduleDayIndex) { ScheduleDays[0] }
+                    _state.update {
+                        it.copy(
+                            scheduleLoading = false,
+                            scheduleError = null,
+                            schedule = scheduleByDay[day] ?: emptyList()
+                        )
+                    }
                 }
-                .onFailure {
-                    _state.update { it.copy(schedule = emptyList()) }
+                .onFailure { e ->
+                    _state.update {
+                        it.copy(
+                            scheduleLoading = false,
+                            scheduleError = e.message ?: "Failed to load schedule",
+                            // Keep previous schedule rows if any so the card doesn't go blank on a blip.
+                            schedule = if (scheduleFetched) it.schedule else emptyList()
+                        )
+                    }
                 }
         }
     }

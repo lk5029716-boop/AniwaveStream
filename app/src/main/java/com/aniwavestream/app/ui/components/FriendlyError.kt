@@ -1,5 +1,6 @@
 package com.aniwavestream.app.ui.components
 
+import com.aniwavestream.app.data.repository.RateLimitException
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -20,6 +21,11 @@ data class FriendlyError(
 enum class FriendlyErrorIcon { OFFLINE, TIMEOUT, NOT_FOUND, RATE_LIMIT, GENERIC }
 
 fun Throwable.toFriendlyError(): FriendlyError = when (this) {
+    is RateLimitException -> FriendlyError(
+        title = "Slow down a sec",
+        message = "The catalog is catching up. Tap retry in a moment.",
+        icon = FriendlyErrorIcon.RATE_LIMIT
+    )
     is UnknownHostException -> FriendlyError(
         title = "You're offline",
         message = "We couldn't reach the anime network. Check your connection and try again.",
@@ -53,7 +59,25 @@ fun Throwable.toFriendlyError(): FriendlyError = when (this) {
         message = "Something got tangled on the way. Give it another shot.",
         icon = FriendlyErrorIcon.OFFLINE
     )
-    else -> genericError()
+    else -> {
+        val msg = message.orEmpty()
+        when {
+            msg.contains("429", ignoreCase = true) ||
+                msg.contains("Too Many Requests", ignoreCase = true) ||
+                msg.contains("Rate limit", ignoreCase = true) ||
+                this::class.simpleName == "RateLimitException" -> FriendlyError(
+                title = "Slow down a sec",
+                message = "The catalog is catching up. Tap retry in a moment.",
+                icon = FriendlyErrorIcon.RATE_LIMIT
+            )
+            msg.contains("timeout", ignoreCase = true) -> FriendlyError(
+                title = "Transmission interrupted",
+                message = "The anime transmission was interrupted. Let's try again!",
+                icon = FriendlyErrorIcon.TIMEOUT
+            )
+            else -> genericError()
+        }
+    }
 }
 
 /** Convenience for legacy call sites that only have a message string. */

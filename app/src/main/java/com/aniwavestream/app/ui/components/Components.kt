@@ -1392,7 +1392,10 @@ fun AnivaveScheduleCard(
     shows: List<DayAiring>,
     onItem: (DayAiring) -> Unit = {},
     modifier: Modifier = Modifier,
-    maxRows: Int = 4
+    maxRows: Int = 4,
+    loading: Boolean = false,
+    error: String? = null,
+    onRetry: (() -> Unit)? = null
 ) {
     Column(
         modifier
@@ -1439,24 +1442,113 @@ fun AnivaveScheduleCard(
 
         Spacer(Modifier.height(14.dp))
 
-        // --- Broadcast list ---
-        if (shows.isEmpty()) {
-            Box(
+        // --- Broadcast list: shimmer while API loads, inline retry on failure ---
+        when {
+            loading && shows.isEmpty() -> ScheduleListShimmer(rows = maxRows.coerceIn(3, 6))
+            error != null && shows.isEmpty() -> {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(SurfaceRaised)
+                        .padding(vertical = 20.dp, horizontal = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "Schedule is catching up…",
+                        color = TextPrimary,
+                        fontFamily = Bricolage,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Live airings will appear in a moment.",
+                        color = TextMuted,
+                        fontFamily = PlexMono,
+                        fontSize = 12.sp
+                    )
+                    if (onRetry != null) {
+                        Spacer(Modifier.height(12.dp))
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Flame)
+                                .clickable { onRetry() }
+                                .padding(horizontal = 18.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                "Retry",
+                                color = Void,
+                                fontFamily = Bricolage,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+            shows.isEmpty() -> {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(SurfaceRaised)
+                        .padding(vertical = 22.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Nothing airing on ${ScheduleDays[activeDayIndex].replaceFirstChar { it.uppercaseChar() }}",
+                        color = TextMuted, fontFamily = PlexMono, fontSize = 12.sp
+                    )
+                }
+            }
+            else -> {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (loading) {
+                        // Soft refresh: keep rows, tiny loading hint above.
+                        Text(
+                            "Updating…",
+                            color = TextMuted,
+                            fontFamily = PlexMono,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                    }
+                    shows.take(maxRows).forEach { s -> ScheduleRow(s) { onItem(s) } }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScheduleListShimmer(rows: Int = 4) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        repeat(rows) {
+            Row(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .height(ROW_HEIGHT)
+                    .clip(RoundedCornerShape(ROW_CORNER))
                     .background(SurfaceRaised)
-                    .padding(vertical = 22.dp),
-                contentAlignment = Alignment.Center
+                    .padding(ROW_PAD),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "Nothing airing on ${ScheduleDays[activeDayIndex].replaceFirstChar { it.uppercaseChar() }}",
-                    color = TextMuted, fontFamily = PlexMono, fontSize = 12.sp
+                ShimmerBox(
+                    Modifier
+                        .size(COVER_SIZE)
+                        .clip(RoundedCornerShape(10.dp)),
+                    RoundedCornerShape(10.dp)
                 )
-            }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                shows.take(maxRows).forEach { s -> ScheduleRow(s) { onItem(s) } }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    ShimmerBox(Modifier.fillMaxWidth(0.35f).height(10.dp), RoundedCornerShape(4.dp))
+                    Spacer(Modifier.height(8.dp))
+                    ShimmerBox(Modifier.fillMaxWidth(0.7f).height(14.dp), RoundedCornerShape(4.dp))
+                    Spacer(Modifier.height(6.dp))
+                    ShimmerBox(Modifier.fillMaxWidth(0.45f).height(10.dp), RoundedCornerShape(4.dp))
+                }
             }
         }
     }
