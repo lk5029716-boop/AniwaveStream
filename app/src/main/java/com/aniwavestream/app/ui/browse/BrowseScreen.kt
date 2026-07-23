@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -316,6 +317,7 @@ private fun LetterRangeSelector(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun DecadeYearSelector(
     selectedDecade: String?,
     selectedYear: Int?,
