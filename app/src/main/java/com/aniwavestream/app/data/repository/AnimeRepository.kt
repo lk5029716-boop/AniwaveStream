@@ -21,6 +21,9 @@ class AnimeRepository(
     private val cache = mutableMapOf<Int, Anime>()
     private val requestTimes = ArrayDeque<Long>()
     private val rateMutex = Mutex()
+    /** Per-filter result cache for Browse (letter/year/genre) so re-selecting a
+     *  filter reuses the prior network result instead of re-hitting AniList. */
+    private val cacheResults = mutableMapOf<String, List<Anime>>()
 
     // AniList unauthenticated limit is 90 req/min. Serialize ALL requests through one
     // mutex + a rolling 60s window so parallel calls can't burst past the limit and get
@@ -181,9 +184,31 @@ class AnimeRepository(
     suspend fun byGenre(genreId: Int): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
             val genre = GENRE_NAMES[genreId] ?: return@runCatching emptyList()
-            throttle()
-            remember(page(AniListApi.query(GENRE_Q, { str("genre", genre); int("perPage", 24) })).map { it.toAnime() })
+            val out = retryQuery { page(AniListApi.query(GENRE_Q, { str("genre", genre); int("perPage", 24) })).map { it.toAnime() } }
+            remember(out)
         }
+    }
+
+    /** Retry a query up to 3x with backoff. AniList's unauthenticated limit is 90
+     *  req/min; rapid filter tapping on the year/letter grid can trip HTTP 429 or
+     *  transient 5xx. We retry those here so the Browse screen surfaces data instead
+     *  of a fatal "Something went sideways" error on the first hit. */
+    private suspend inline fun <T> retryQuery(block: () -> T): T {
+        var lastErr: Throwable? = null
+        repeat(3) { attempt ->
+            try {
+                return block()
+            } catch (e: RateLimitException) {
+                lastErr = e
+                val wait = (1500L * (attempt + 1)).coerceAtMost(9000L)
+                delay(wait)
+            } catch (e: RuntimeException) {
+                // AniListApi throws RuntimeException for non-429 HTTP errors; retry once.
+                lastErr = e
+                if (attempt < 1) delay(1000L) else throw e
+            }
+        }
+        throw lastErr ?: RuntimeException("Browse query failed")
     }
 
     /** A–Z browse.
@@ -201,53 +226,68 @@ class AnimeRepository(
      * "All"/"ALL"/blank returns the popular list. */
     suspend fun byLetter(letter: String): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
-            throttle()
-            if (letter.isBlank() || letter.equals("All", ignoreCase = true)) {
-                return@runCatching remember(
-                    page(AniListApi.query(POPULAR_Q, { int("perPage", 50) })).map { it.toAnime() }
-                )
+            val key = ("letter:" + letter.lowercase())
+            cacheResults[key]?.let { return@runCatching it }
+            val out = retryQuery {
+                loadByLetterUncached(letter)
             }
-            val target = letter.first().uppercaseChar()
-            // Search works for B–Z. A and O are stopwords → paging fallback.
-            if (target !in setOf('A', 'O')) {
-                val all = page(
-                    AniListApi.query(SEARCH_Q, { str("q", letter); int("perPage", 50) })
-                ).map { it.toAnime() }
-                val filtered = all.filter { a ->
-                    a.title.firstOrNull()?.equals(letter.first(), ignoreCase = true) == true
-                }
-                if (filtered.isNotEmpty()) return@runCatching remember(filtered)
-                // fall through to paging if search returned nothing unexpected
-            }
-            // Paging fallback (covers A, O, and any search miss).
-            val out = mutableListOf<Anime>()
-            val maxPages = 80
-            for (pageNum in 1..maxPages) {
-                val media = page(
-                    AniListApi.query(BY_LETTER_Q, { int("page", pageNum); int("perPage", 50) })
-                )
-                if (media.isEmpty()) break
-                var passed = false
-                for (m in media) {
-                    val anime = m.toAnime()
-                    val first = anime.title.firstOrNull() ?: continue
-                    if (!first.isLetterOrDigit()) continue
-                    val fu = first.uppercaseChar()
-                    if (fu < target) continue
-                    if (fu > target) { passed = true; break }
-                    if (fu == target) out += anime
-                }
-                if (passed || out.size >= 60) break
-            }
+            cacheResults[key] = out
             remember(out)
         }
     }
 
-    /** Release year browse: AniList media filtered by seasonYear. */
+    /** Core letter load (no caching/retry wrapper). */
+    private fun loadByLetterUncached(letter: String): List<Anime> {
+        throttle()
+        if (letter.isBlank() || letter.equals("All", ignoreCase = true)) {
+            return page(AniListApi.query(POPULAR_Q, { int("perPage", 50) })).map { it.toAnime() }
+        }
+        val target = letter.first().uppercaseChar()
+        // Search works for B–Z. A and O are stopwords → paging fallback.
+        if (target !in setOf('A', 'O')) {
+            val all = page(
+                AniListApi.query(SEARCH_Q, { str("q", letter); int("perPage", 50) })
+            ).map { it.toAnime() }
+            val filtered = all.filter { a ->
+                a.title.firstOrNull()?.equals(letter.first(), ignoreCase = true) == true
+            }
+            if (filtered.isNotEmpty()) return filtered
+            // fall through to paging if search returned nothing unexpected
+        }
+        // Paging fallback (covers A, O, and any search miss).
+        val out = mutableListOf<Anime>()
+        val maxPages = 80
+        for (pageNum in 1..maxPages) {
+            val media = page(
+                AniListApi.query(BY_LETTER_Q, { int("page", pageNum); int("perPage", 50) })
+            )
+            if (media.isEmpty()) break
+            var passed = false
+            for (m in media) {
+                val anime = m.toAnime()
+                val first = anime.title.firstOrNull() ?: continue
+                if (!first.isLetterOrDigit()) continue
+                val fu = first.uppercaseChar()
+                if (fu < target) continue
+                if (fu > target) { passed = true; break }
+                if (fu == target) out += anime
+            }
+            if (passed || out.size >= 60) break
+        }
+        return out
+    }
+
+    /** Release year browse: AniList media filtered by seasonYear. Results are cached
+     *  per year so re-tapping a decade/year doesn't re-hit the network (and re-risks 429). */
     suspend fun byYear(year: Int): Result<List<Anime>> = withContext(Dispatchers.IO) {
         runCatching {
-            throttle()
-            remember(page(AniListApi.query(BY_YEAR_Q, { int("year", year); int("perPage", 24) })).map { it.toAnime() })
+            val key = "year:$year"
+            cacheResults[key]?.let { return@runCatching it }
+            val out = retryQuery {
+                page(AniListApi.query(BY_YEAR_Q, { int("year", year); int("perPage", 24) })).map { it.toAnime() }
+            }
+            cacheResults[key] = out
+            remember(out)
         }
     }
 
